@@ -339,6 +339,12 @@ const TYPES = {
   options: { label: "3 options", commentRequired: false },
 };
 
+const COMMENT_PLACEHOLDERS = {
+  edit: "What to change or add (required)",
+  context: "What exactly to focus on (optional)",
+  options: "Describe the problem (optional)",
+};
+
 let text = "";
 let annotations = [];   // {id, start, end, quote, type, comment}
 let nextId = 1;
@@ -446,12 +452,10 @@ function renderCards() {
 
     card.append(head, quote);
 
-    if (a.type !== "context") {
+    {
       const ta = document.createElement("textarea");
       ta.value = a.comment;
-      ta.placeholder = a.type === "edit"
-        ? "What to change or add (required)"
-        : "Describe the problem (optional)";
+      ta.placeholder = COMMENT_PLACEHOLDERS[a.type];
       ta.addEventListener("input", () => {
         a.comment = ta.value;
         ta.classList.toggle("invalid", TYPES[a.type].commentRequired && !ta.value.trim());
@@ -551,16 +555,10 @@ $("seltool").querySelectorAll(".types button").forEach((btn) => {
       return;
     }
     pendingType = btn.dataset.type;
-    if (pendingType === "context") {
-      addAnnotation(pendingType, "");
-      return;
-    }
     const form = $("seltool-form");
     form.style.display = "block";
     const ta = $("seltool-comment");
-    ta.placeholder = pendingType === "edit"
-      ? "What to change or add (required)"
-      : "Describe the problem (optional)";
+    ta.placeholder = COMMENT_PLACEHOLDERS[pendingType];
     updateSaveState();
     ta.focus();
   });
@@ -626,8 +624,9 @@ function buildPrompt() {
       lines.push(`### ${i + 1}. Edit`, "", quoteBlock(a.quote), "",
                  `**Instruction:** ${a.comment.trim()}`);
     } else if (a.type === "context") {
-      lines.push(`### ${i + 1}. Context`, "", quoteBlock(a.quote), "",
-                 "**Instruction:** very briefly explain the context of this passage: what it is and how it works.");
+      lines.push(`### ${i + 1}. Context`, "", quoteBlock(a.quote), "");
+      if (a.comment.trim()) lines.push(`**Note:** ${a.comment.trim()}`);
+      lines.push("**Instruction:** very briefly explain the context of this passage: what it is and how it works.");
     } else {
       lines.push(`### ${i + 1}. 3 options (A/B/C)`, "", quoteBlock(a.quote), "");
       if (a.comment.trim()) lines.push(`**Problem:** ${a.comment.trim()}`);
