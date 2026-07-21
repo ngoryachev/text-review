@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text Review</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #d9dde3;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --edit-bg: #fde9b8;    --edit-strong: #b45309;
+    --context-bg: #cce7f6; --context-strong: #0369a1;
+    --options-bg: #e3d5f5; --options-strong: #7c3aed;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex: 0 0 auto;
+  }
+  header h1 { font-size: 16px; margin: 0; }
+  .legend { display: flex; gap: 12px; font-size: 13px; color: var(--muted); }
+  .legend span::before {
+    content: "";
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    margin-right: 5px;
+  }
+  .legend .l-edit::before { background: var(--edit-bg); border: 1px solid var(--edit-strong); }
+  .legend .l-context::before { background: var(--context-bg); border: 1px solid var(--context-strong); }
+  .legend .l-options::before { background: var(--options-bg); border: 1px solid var(--options-strong); }
+  header .spacer { flex: 1; }
+  button {
+    font: inherit;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button.primary:hover:not(:disabled) { background: #1d4ed8; color: #fff; }
+
+  main { flex: 1 1 auto; display: flex; min-height: 0; }
+
+  /* ---- empty state ---- */
+  #paste-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 24px;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  #paste-view textarea {
+    flex: 1;
+    font: 14px/1.5 ui-monospace, "SF Mono", Consolas, monospace;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    resize: none;
+  }
+  #paste-view .row { display: flex; justify-content: flex-end; }
+
+  /* ---- review layout ---- */
+  #review-view { flex: 1; display: none; min-height: 0; }
+  #doc-pane {
+    flex: 1 1 65%;
+    overflow: auto;
+    padding: 20px 24px 120px;
+  }
+  #doc {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: 14px/1.7 ui-monospace, "SF Mono", Consolas, monospace;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+  }
+  #doc span.hl { cursor: pointer; border-radius: 2px; }
+  #doc span.hl-edit { background: var(--edit-bg); box-shadow: inset 0 -2px var(--edit-strong); }
+  #doc span.hl-context { background: var(--context-bg); box-shadow: inset 0 -2px var(--context-strong); }
+  #doc span.hl-options { background: var(--options-bg); box-shadow: inset 0 -2px var(--options-strong); }
+  #doc span.flash, .card.flash { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  #sidebar {
+    flex: 1 1 35%;
+    max-width: 460px;
+    min-width: 300px;
+    border-left: 1px solid var(--border);
+    background: var(--panel);
+    overflow: auto;
+    padding: 14px 14px 120px;
+  }
+  #sidebar h2 { font-size: 13px; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  #sidebar .hint { color: var(--muted); font-size: 13px; }
+
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .card .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .badge.edit { background: var(--edit-bg); color: var(--edit-strong); }
+  .badge.context { background: var(--context-bg); color: var(--context-strong); }
+  .badge.options { background: var(--options-bg); color: var(--options-strong); }
+  .card .del {
+    margin-left: auto;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 16px;
+    padding: 0 4px;
+  }
+  .card .del:hover { color: var(--danger); }
+  .card .quote {
+    font: 12px/1.5 ui-monospace, Consolas, monospace;
+    color: var(--muted);
+    border-left: 3px solid var(--border);
+    padding-left: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .card textarea {
+    width: 100%;
+    font: 13px/1.4 inherit;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    resize: vertical;
+    min-height: 34px;
+  }
+  .card textarea.invalid { border-color: var(--danger); }
+  .card .req-note { color: var(--danger); font-size: 12px; display: none; }
+  .card textarea.invalid + .req-note { display: block; }
+
+  /* ---- floating selection toolbar ---- */
+  #seltool {
+    position: absolute;
+    z-index: 30;
+    display: none;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.14);
+    padding: 8px;
+    width: 300px;
+  }
+  #seltool .types { display: flex; gap: 6px; }
+  #seltool .types button { flex: 1; font-size: 13px; padding: 5px 4px; }
+  #seltool form { display: none; margin-top: 8px; }
+  #seltool textarea {
+    width: 100%;
+    font: 13px/1.4 inherit;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    resize: vertical;
+    min-height: 52px;
+  }
+  #seltool .form-row { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+  #seltool .error { color: var(--danger); font-size: 12px; margin-top: 6px; display: none; }
+
+  /* ---- compose button ---- */
+  #compose {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 20;
+    font-size: 15px;
+    padding: 12px 20px;
+    border-radius: 999px;
+    box-shadow: 0 6px 24px rgba(37,99,235,.35);
+  }
+  #compose .count {
+    background: rgba(255,255,255,.25);
+    border-radius: 999px;
+    padding: 1px 8px;
+    margin-left: 6px;
+    font-size: 13px;
+  }
+
+  /* ---- modal ---- */
+  #modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,18,25,.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 40;
+  }
+  #modal {
+    background: var(--panel);
+    border-radius: 10px;
+    width: min(860px, 92vw);
+    max-height: 86vh;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+  }
+  #modal h2 { margin: 0; font-size: 16px; }
+  #prompt-preview {
+    flex: 1;
+    overflow: auto;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font: 13px/1.55 ui-monospace, Consolas, monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    margin: 0;
+  }
+  #modal .row { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  #modal .row .status { color: var(--muted); font-size: 13px; margin-right: auto; }
+
+  #done-view {
+    display: none;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--muted);
+    font-size: 17px;
+    padding: 40px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Text Review</h1>
+  <div class="legend">
+    <span class="l-edit">Edit</span>
+    <span class="l-context">Context</span>
+    <span class="l-options">3 options</span>
+  </div>
+  <div class="spacer"></div>
+  <button id="change-text" style="display:none">Change text</button>
+</header>
+
+<main>
+  <div id="paste-view">
+    <textarea id="paste-input" placeholder="Paste the text to review…"></textarea>
+    <div class="row"><button id="start-review" class="primary" disabled>Start review</button></div>
+  </div>
+
+  <div id="review-view">
+    <div id="doc-pane"><div id="doc"></div></div>
+    <aside id="sidebar">
+      <h2>Annotations</h2>
+      <div id="cards"></div>
+      <p class="hint" id="sidebar-hint">Select a passage in the text and pick an annotation type.</p>
+    </aside>
+  </div>
+
+  <div id="done-view">The prompt has been sent to the terminal.<br>You can close this tab.</div>
+</main>
+
+<div id="seltool">
+  <div class="types">
+    <button data-type="edit">Edit</button>
+    <button data-type="context">Context</button>
+    <button data-type="options">3 options</button>
+  </div>
+  <form id="seltool-form">
+    <textarea id="seltool-comment"></textarea>
+    <div class="form-row">
+      <button type="button" id="seltool-cancel">Cancel</button>
+      <button type="submit" class="primary" id="seltool-save">Save</button>
+    </div>
+  </form>
+  <div class="error" id="seltool-error"></div>
+</div>
+
+<button id="compose" class="primary" style="display:none">
+  Compose prompt<span class="count" id="compose-count">0</span>
+</button>
+
+<div id="modal-backdrop">
+  <div id="modal">
+    <h2>Composed prompt</h2>
+    <pre id="prompt-preview"></pre>
+    <div class="row">
+      <span class="status" id="copy-status"></span>
+      <button id="modal-close">Close</button>
+      <button id="copy-btn">Copy</button>
+      <button id="send-btn" class="primary">Send to CLI &amp; finish</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const TYPES = {
+  edit:    { label: "Edit",    commentRequired: true  },
+  context: { label: "Context", commentRequired: false },
+  options: { label: "3 options", commentRequired: false },
+};
+
+let text = "";
+let annotations = [];   // {id, start, end, quote, type, comment}
+let nextId = 1;
+let pendingRange = null; // {start, end} awaiting a type/comment in the toolbar
+
+const $ = (id) => document.getElementById(id);
+const doc = $("doc");
+
+/* ---------- init ---------- */
+
+fetch("/api/text")
+  .then((r) => r.json())
+  .then(({ text: t }) => {
+    if (t) startReview(t);
+  })
+  .catch(() => {});
+
+$("paste-input").addEventListener("input", (e) => {
+  $("start-review").disabled = !e.target.value.trim();
+});
+$("start-review").addEventListener("click", () => {
+  startReview($("paste-input").value);
+});
+$("change-text").addEventListener("click", () => {
+  if (annotations.length &&
+      !confirm("Changing the text will discard all annotations. Continue?")) return;
+  annotations = [];
+  hideToolbar();
+  $("paste-input").value = text;
+  $("start-review").disabled = !text.trim();
+  $("review-view").style.display = "none";
+  $("compose").style.display = "none";
+  $("change-text").style.display = "none";
+  $("paste-view").style.display = "flex";
+});
+
+function startReview(t) {
+  text = t.replace(/\r\n/g, "\n");
+  $("paste-view").style.display = "none";
+  $("review-view").style.display = "flex";
+  $("change-text").style.display = "";
+  $("compose").style.display = "";
+  render();
+}
+
+/* ---------- rendering ---------- */
+
+function render() {
+  annotations.sort((a, b) => a.start - b.start);
+  renderDoc();
+  renderCards();
+  const n = annotations.length;
+  $("compose-count").textContent = n;
+  $("compose").disabled = n === 0 || !allValid();
+  $("sidebar-hint").style.display = n ? "none" : "";
+}
+
+function renderDoc() {
+  // Invariant: doc.textContent === text, so selection offsets stay correct.
+  doc.textContent = "";
+  let pos = 0;
+  for (const a of annotations) {
+    if (a.start > pos) doc.appendChild(document.createTextNode(text.slice(pos, a.start)));
+    const span = document.createElement("span");
+    span.className = `hl hl-${a.type}`;
+    span.dataset.id = a.id;
+    span.textContent = text.slice(a.start, a.end);
+    doc.appendChild(span);
+    pos = a.end;
+  }
+  if (pos < text.length) doc.appendChild(document.createTextNode(text.slice(pos)));
+}
+
+function renderCards() {
+  const cards = $("cards");
+  cards.textContent = "";
+  for (const a of annotations) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.dataset.id = a.id;
+
+    const head = document.createElement("div");
+    head.className = "card-head";
+    const badge = document.createElement("span");
+    badge.className = `badge ${a.type}`;
+    badge.textContent = TYPES[a.type].label;
+    const del = document.createElement("button");
+    del.className = "del";
+    del.textContent = "×";
+    del.title = "Delete annotation";
+    del.addEventListener("click", () => {
+      annotations = annotations.filter((x) => x.id !== a.id);
+      render();
+    });
+    head.append(badge, del);
+
+    const quote = document.createElement("div");
+    quote.className = "quote";
+    quote.textContent = a.quote.length > 120 ? a.quote.slice(0, 120) + "…" : a.quote;
+    quote.title = "Jump to the passage";
+    quote.addEventListener("click", () => {
+      const span = doc.querySelector(`span[data-id="${a.id}"]`);
+      if (span) { span.scrollIntoView({ block: "center", behavior: "smooth" }); flash(span); }
+    });
+
+    card.append(head, quote);
+
+    if (a.type !== "context") {
+      const ta = document.createElement("textarea");
+      ta.value = a.comment;
+      ta.placeholder = a.type === "edit"
+        ? "What to change or add (required)"
+        : "Describe the problem (optional)";
+      ta.addEventListener("input", () => {
+        a.comment = ta.value;
+        ta.classList.toggle("invalid", TYPES[a.type].commentRequired && !ta.value.trim());
+        $("compose").disabled = annotations.length === 0 || !allValid();
+      });
+      ta.classList.toggle("invalid", TYPES[a.type].commentRequired && !ta.value.trim());
+      const note = document.createElement("div");
+      note.className = "req-note";
+      note.textContent = "A comment is required for an edit.";
+      card.append(ta, note);
+    }
+    cards.appendChild(card);
+  }
+}
+
+function allValid() {
+  return annotations.every((a) => !TYPES[a.type].commentRequired || a.comment.trim());
+}
+
+function flash(el) {
+  el.classList.add("flash");
+  setTimeout(() => el.classList.remove("flash"), 1200);
+}
+
+/* clicking a highlight scrolls to its card */
+doc.addEventListener("click", (e) => {
+  const span = e.target.closest("span.hl");
+  if (!span) return;
+  const card = document.querySelector(`.card[data-id="${span.dataset.id}"]`);
+  if (card) { card.scrollIntoView({ block: "center", behavior: "smooth" }); flash(card); }
+});
+
+/* ---------- selection & floating toolbar ---------- */
+
+document.addEventListener("mouseup", (e) => {
+  if ($("seltool").contains(e.target)) return;
+  setTimeout(handleSelection, 0); // let the browser finalize the selection first
+});
+
+function handleSelection() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  if (!doc.contains(range.startContainer) || !doc.contains(range.endContainer)) return;
+
+  const pre = range.cloneRange();
+  pre.selectNodeContents(doc);
+  pre.setEnd(range.startContainer, range.startOffset);
+  const start = pre.toString().length;
+  const end = start + range.toString().length;
+  if (end <= start) return;
+
+  pendingRange = { start, end };
+  const rect = range.getBoundingClientRect();
+  showToolbar(rect);
+
+  if (annotations.some((a) => a.start < end && start < a.end)) {
+    showToolbarError("Passages must not overlap.");
+  }
+}
+
+function showToolbar(rect) {
+  const tool = $("seltool");
+  tool.style.display = "block";
+  $("seltool-form").style.display = "none";
+  $("seltool-error").style.display = "none";
+  $("seltool-comment").value = "";
+  const top = rect.bottom + window.scrollY + 8;
+  let left = rect.left + window.scrollX + rect.width / 2 - 150;
+  left = Math.max(8, Math.min(left, window.scrollX + document.documentElement.clientWidth - 308));
+  tool.style.top = `${top}px`;
+  tool.style.left = `${left}px`;
+}
+
+function showToolbarError(msg) {
+  const err = $("seltool-error");
+  err.textContent = msg;
+  err.style.display = "block";
+}
+
+function hideToolbar() {
+  $("seltool").style.display = "none";
+  pendingRange = null;
+}
+
+document.addEventListener("mousedown", (e) => {
+  if (!$("seltool").contains(e.target)) hideToolbar();
+});
+
+let pendingType = null;
+$("seltool").querySelectorAll(".types button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (!pendingRange) return;
+    const { start, end } = pendingRange;
+    if (annotations.some((a) => a.start < end && start < a.end)) {
+      showToolbarError("Passages must not overlap.");
+      return;
+    }
+    pendingType = btn.dataset.type;
+    if (pendingType === "context") {
+      addAnnotation(pendingType, "");
+      return;
+    }
+    const form = $("seltool-form");
+    form.style.display = "block";
+    const ta = $("seltool-comment");
+    ta.placeholder = pendingType === "edit"
+      ? "What to change or add (required)"
+      : "Describe the problem (optional)";
+    updateSaveState();
+    ta.focus();
+  });
+});
+
+function updateSaveState() {
+  $("seltool-save").disabled =
+    TYPES[pendingType].commentRequired && !$("seltool-comment").value.trim();
+}
+$("seltool-comment").addEventListener("input", updateSaveState);
+$("seltool-comment").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (!$("seltool-save").disabled) $("seltool-form").requestSubmit();
+  } else if (e.key === "Escape") {
+    hideToolbar();
+  }
+});
+$("seltool-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  addAnnotation(pendingType, $("seltool-comment").value.trim());
+});
+$("seltool-cancel").addEventListener("click", hideToolbar);
+
+function addAnnotation(type, comment) {
+  const { start, end } = pendingRange;
+  annotations.push({
+    id: nextId++,
+    start,
+    end,
+    quote: text.slice(start, end),
+    type,
+    comment,
+  });
+  hideToolbar();
+  window.getSelection().removeAllRanges();
+  render();
+}
+
+/* ---------- prompt composition ---------- */
+
+function quoteBlock(s) {
+  let q = s;
+  if (q.length > 800) q = q.slice(0, 400) + "\n[...]\n" + q.slice(-300);
+  return q.split("\n").map((line) => "> " + line).join("\n");
+}
+
+function buildPrompt() {
+  const lines = [
+    "# Feedback on your text",
+    "",
+    "I reviewed the text and annotated some passages. Below are the quotes and instructions.",
+    "Process the items in order. Annotation types:",
+    "- **Edit** — apply the requested change to this passage.",
+    "- **Context** — very briefly (2–4 sentences) explain what this is and how it works.",
+    "- **3 options** — propose options A, B and C with a one-line rationale each; I will pick a direction.",
+    "",
+    "---",
+  ];
+  annotations.forEach((a, i) => {
+    lines.push("");
+    if (a.type === "edit") {
+      lines.push(`### ${i + 1}. Edit`, "", quoteBlock(a.quote), "",
+                 `**Instruction:** ${a.comment.trim()}`);
+    } else if (a.type === "context") {
+      lines.push(`### ${i + 1}. Context`, "", quoteBlock(a.quote), "",
+                 "**Instruction:** very briefly explain the context of this passage: what it is and how it works.");
+    } else {
+      lines.push(`### ${i + 1}. 3 options (A/B/C)`, "", quoteBlock(a.quote), "");
+      if (a.comment.trim()) lines.push(`**Problem:** ${a.comment.trim()}`);
+      lines.push("**Instruction:** propose 3 solutions (A, B, C) to this, briefly, for me to choose from.");
+    }
+  });
+  return lines.join("\n");
+}
+
+/* ---------- modal ---------- */
+
+let currentPrompt = "";
+
+$("compose").addEventListener("click", () => {
+  currentPrompt = buildPrompt();
+  $("prompt-preview").textContent = currentPrompt;
+  $("copy-status").textContent = "";
+  $("modal-backdrop").style.display = "flex";
+});
+$("modal-close").addEventListener("click", () => {
+  $("modal-backdrop").style.display = "none";
+});
+$("modal-backdrop").addEventListener("mousedown", (e) => {
+  if (e.target === e.currentTarget) $("modal-backdrop").style.display = "none";
+});
+
+async function copyPrompt() {
+  try {
+    await navigator.clipboard.writeText(currentPrompt);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = currentPrompt;
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch {}
+    ta.remove();
+    return ok;
+  }
+}
+
+$("copy-btn").addEventListener("click", async () => {
+  $("copy-status").textContent = (await copyPrompt()) ? "Copied to clipboard." : "Copy failed.";
+});
+
+$("send-btn").addEventListener("click", async () => {
+  await copyPrompt();
+  try {
+    const r = await fetch("/api/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: currentPrompt, annotations }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+  } catch (err) {
+    $("copy-status").textContent = "Failed to send: " + err.message;
+    return;
+  }
+  $("modal-backdrop").style.display = "none";
+  $("review-view").style.display = "none";
+  $("compose").style.display = "none";
+  $("change-text").style.display = "none";
+  $("done-view").style.display = "flex";
+});
+</script>
+</body>
+</html>
