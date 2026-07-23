@@ -239,6 +239,16 @@
     gap: 12px;
   }
   #modal h2 { margin: 0; font-size: 16px; }
+  #modal .modal-head { display: flex; align-items: center; justify-content: space-between; }
+  #modal .toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
   #prompt-preview {
     flex: 1;
     overflow: auto;
@@ -319,7 +329,10 @@
 
 <div id="modal-backdrop">
   <div id="modal">
-    <h2>Composed prompt</h2>
+    <div class="modal-head">
+      <h2>Composed prompt</h2>
+      <label class="toggle"><input type="checkbox" id="condense-toggle">Condense</label>
+    </div>
     <pre id="prompt-preview"></pre>
     <div class="row">
       <span class="status" id="copy-status"></span>
@@ -644,14 +657,31 @@ function buildPrompt() {
   return lines.join("\n");
 }
 
+// Bare quote/answer pairs without the legend — for pasting into a chat with people.
+function buildCondensedPrompt() {
+  const FALLBACKS = {
+    context: "what is this and how does it work?",
+    options: "what are the options here? (A/B/C)",
+  };
+  return annotations
+    .map((a) => quoteBlock(a.quote) + "\n\n" + (a.comment.trim() || FALLBACKS[a.type]))
+    .join("\n\n\n");
+}
+
 /* ---------- modal ---------- */
 
 let currentPrompt = "";
 
-$("compose").addEventListener("click", () => {
-  currentPrompt = buildPrompt();
+function updatePreview() {
+  currentPrompt = $("condense-toggle").checked ? buildCondensedPrompt() : buildPrompt();
   $("prompt-preview").textContent = currentPrompt;
   $("copy-status").textContent = "";
+}
+
+$("condense-toggle").addEventListener("change", updatePreview);
+
+$("compose").addEventListener("click", () => {
+  updatePreview();
   $("send-btn").style.display = serverAvailable ? "" : "none";
   $("copy-btn").classList.toggle("primary", !serverAvailable);
   $("modal-backdrop").style.display = "flex";

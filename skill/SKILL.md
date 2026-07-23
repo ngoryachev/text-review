@@ -1,6 +1,6 @@
 ---
 name: text-review
-description: Collect structured human feedback on a plan, draft, or any text before proceeding. Opens a local browser UI where the user annotates passages (edit requests, context questions, A/B/C option requests) and returns a composed markdown feedback prompt. Use when the user should review or steer a plan/answer you produced.
+description: Collect structured human feedback on a plan, draft, or any text before proceeding. Opens a local browser UI where the user annotates passages (edit requests, context questions, A/B/C option requests) and returns a composed markdown feedback prompt. Use when the user should review or steer a plan/answer you produced. Defaults to reviewing the last assistant message if no text is specified.
 ---
 
 # Text Review
@@ -12,7 +12,10 @@ prints a markdown feedback prompt to **stdout** and exits.
 
 ## How to use
 
-1. Write the text to review (your plan, draft, answer) to a temporary file.
+1. Determine the text to review. If the user did not specify one, **default to
+   your most recent substantive assistant message** (the last plan, draft, or
+   answer you produced in this conversation). Write that text to a temporary
+   file.
 2. Run the binary from this skill's directory. It blocks while the user
    annotates — always use the maximum Bash timeout (600000 ms), or
    `run_in_background` and collect the output when it finishes:
@@ -22,7 +25,8 @@ prints a markdown feedback prompt to **stdout** and exits.
    ```
 
    Piping also works: `... | "$SKILL_DIR/text-review"`. Running with no
-   argument opens an empty paste field in the UI.
+   argument opens an empty paste field in the UI — use that only as a
+   fallback when the conversation has no suitable assistant message yet.
 3. Exit codes: `0` — feedback collected (stdout holds the prompt);
    `130` — the user closed the session without submitting (Ctrl+C);
    treat it as "no feedback, do not proceed with assumptions".
