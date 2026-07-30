@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Text Review</title>
 <style>
   :root {
@@ -173,8 +173,9 @@
   .card textarea.invalid + .req-note { display: block; }
 
   /* ---- floating selection toolbar ---- */
+  /* fixed, not absolute: the panes scroll, body doesn't, so viewport coords are stable */
   #seltool {
-    position: absolute;
+    position: fixed;
     z-index: 30;
     display: none;
     background: var(--panel);
@@ -182,7 +183,7 @@
     border-radius: 8px;
     box-shadow: 0 6px 24px rgba(0,0,0,.14);
     padding: 8px;
-    width: 300px;
+    width: min(300px, calc(100vw - 16px));
   }
   #seltool .types { display: flex; gap: 6px; }
   #seltool .types button { flex: 1; font-size: 13px; padding: 5px 4px; }
@@ -273,6 +274,47 @@
     color: var(--muted);
     font-size: 17px;
     padding: 40px;
+  }
+
+  /* ---- mobile ---- */
+  @media (max-width: 768px) {
+    header { flex-wrap: wrap; gap: 8px 12px; padding: 10px 12px; }
+    .legend { gap: 8px; font-size: 12px; flex-wrap: wrap; }
+
+    /* single scroll container, doc above annotations */
+    #review-view { flex-direction: column; overflow: auto; -webkit-overflow-scrolling: touch; }
+    #doc-pane { flex: none; overflow: visible; padding: 12px 12px 0; }
+    #doc { padding: 12px 14px; }
+    #sidebar {
+      flex: none;
+      max-width: none;
+      min-width: 0;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      overflow: visible;
+      margin-top: 12px;
+      padding: 14px 12px 140px;
+    }
+
+    #paste-view { padding: 12px; }
+
+    #compose {
+      right: 16px;
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    }
+
+    #modal-backdrop { padding: 8px; }
+    #modal { width: 100%; max-height: calc(100dvh - 16px); padding: 12px; }
+    #modal .row { flex-wrap: wrap; }
+    #modal .row .status { flex-basis: 100%; margin-right: 0; }
+  }
+
+  /* 16px inputs so iOS Safari doesn't zoom in on focus */
+  @media (pointer: coarse) {
+    #paste-view textarea, .card textarea, #seltool textarea { font-size: 16px; }
+    button { padding: 8px 14px; }
+    #seltool .types button { padding: 8px 4px; }
+    .card .del { font-size: 20px; padding: 0 8px; }
   }
 </style>
 </head>
@@ -513,6 +555,22 @@ document.addEventListener("mouseup", (e) => {
   setTimeout(handleSelection, 0); // let the browser finalize the selection first
 });
 
+/* On touch devices selection happens via long-press handles and never fires
+   mouseup, so watch selectionchange instead (debounced while handles move). */
+if (window.matchMedia("(pointer: coarse)").matches) {
+  let selTimer;
+  document.addEventListener("selectionchange", () => {
+    clearTimeout(selTimer);
+    selTimer = setTimeout(() => {
+      // don't reset the toolbar while a comment is being typed
+      if ($("seltool-form").style.display === "block") return;
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) return;
+      handleSelection();
+    }, 300);
+  });
+}
+
 function handleSelection() {
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
@@ -541,9 +599,14 @@ function showToolbar(rect) {
   $("seltool-form").style.display = "none";
   $("seltool-error").style.display = "none";
   $("seltool-comment").value = "";
-  const top = rect.bottom + window.scrollY + 8;
-  let left = rect.left + window.scrollX + rect.width / 2 - 150;
-  left = Math.max(8, Math.min(left, window.scrollX + document.documentElement.clientWidth - 308));
+  const w = tool.offsetWidth || 300;
+  const vw = document.documentElement.clientWidth;
+  const vh = window.innerHeight;
+  let left = rect.left + rect.width / 2 - w / 2;
+  left = Math.max(8, Math.min(left, vw - w - 8));
+  // below the selection if it fits (leaving room for the expanded form), else above
+  let top = rect.bottom + 8;
+  if (top + 180 > vh) top = Math.max(8, rect.top - tool.offsetHeight - 8);
   tool.style.top = `${top}px`;
   tool.style.left = `${left}px`;
 }
