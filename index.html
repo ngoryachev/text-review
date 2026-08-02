@@ -619,6 +619,7 @@ function showToolbarError(msg) {
 
 function hideToolbar() {
   $("seltool").style.display = "none";
+  $("seltool-form").style.display = "none"; // else the selectionchange guard blocks the next selection on touch
   pendingRange = null;
 }
 
