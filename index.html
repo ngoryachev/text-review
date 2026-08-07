@@ -12,9 +12,10 @@
     --text: #1f2328;
     --muted: #6b7280;
     --accent: #2563eb;
-    --edit-bg: #fde9b8;    --edit-strong: #b45309;
-    --context-bg: #cce7f6; --context-strong: #0369a1;
-    --options-bg: #e3d5f5; --options-strong: #7c3aed;
+    --edit-bg: #fde9b8;     --edit-strong: #b45309;
+    --question-bg: #cce7f6; --question-strong: #0369a1;
+    --options-bg: #e3d5f5;  --options-strong: #7c3aed;
+    --reject-bg: #fbd5d5;   --reject-strong: #b91c1c;
     --danger: #dc2626;
   }
   * { box-sizing: border-box; }
@@ -47,8 +48,9 @@
     margin-right: 5px;
   }
   .legend .l-edit::before { background: var(--edit-bg); border: 1px solid var(--edit-strong); }
-  .legend .l-context::before { background: var(--context-bg); border: 1px solid var(--context-strong); }
+  .legend .l-question::before { background: var(--question-bg); border: 1px solid var(--question-strong); }
   .legend .l-options::before { background: var(--options-bg); border: 1px solid var(--options-strong); }
+  .legend .l-reject::before { background: var(--reject-bg); border: 1px solid var(--reject-strong); }
   header .spacer { flex: 1; }
   button {
     font: inherit;
@@ -80,14 +82,25 @@
     margin: 0 auto;
     width: 100%;
   }
+  #paste-view .input-wrap { position: relative; flex: 1; display: flex; min-height: 0; }
   #paste-view textarea {
     flex: 1;
     font: 14px/1.5 ui-monospace, "SF Mono", Consolas, monospace;
-    padding: 12px;
+    padding: 12px 44px 12px 12px;
     border: 1px solid var(--border);
     border-radius: 8px;
     resize: none;
   }
+  #paste-clear {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    line-height: 1;
+    font-size: 18px;
+    padding: 4px 9px;
+    color: var(--muted);
+  }
+  #paste-clear:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
   #paste-view .row { display: flex; justify-content: flex-end; }
 
   /* ---- review layout ---- */
@@ -108,8 +121,15 @@
   }
   #doc span.hl { cursor: pointer; border-radius: 2px; }
   #doc span.hl-edit { background: var(--edit-bg); box-shadow: inset 0 -2px var(--edit-strong); }
-  #doc span.hl-context { background: var(--context-bg); box-shadow: inset 0 -2px var(--context-strong); }
+  #doc span.hl-question { background: var(--question-bg); box-shadow: inset 0 -2px var(--question-strong); }
   #doc span.hl-options { background: var(--options-bg); box-shadow: inset 0 -2px var(--options-strong); }
+  #doc span.hl-reject {
+    background: var(--reject-bg);
+    color: var(--reject-strong);
+    text-decoration: line-through;
+    text-decoration-color: var(--reject-strong);
+    text-decoration-thickness: 2px;
+  }
   #doc span.flash, .card.flash { outline: 2px solid var(--accent); outline-offset: 1px; }
 
   #sidebar {
@@ -138,8 +158,10 @@
     border-radius: 10px;
   }
   .badge.edit { background: var(--edit-bg); color: var(--edit-strong); }
-  .badge.context { background: var(--context-bg); color: var(--context-strong); }
+  .badge.question { background: var(--question-bg); color: var(--question-strong); }
   .badge.options { background: var(--options-bg); color: var(--options-strong); }
+  .badge.reject { background: var(--reject-bg); color: var(--reject-strong); }
+  .card.reject .quote { text-decoration: line-through; text-decoration-color: var(--reject-strong); }
   .card .del {
     margin-left: auto;
     border: none;
@@ -185,8 +207,8 @@
     padding: 8px;
     width: min(300px, calc(100vw - 16px));
   }
-  #seltool .types { display: flex; gap: 6px; }
-  #seltool .types button { flex: 1; font-size: 13px; padding: 5px 4px; }
+  #seltool .types { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  #seltool .types button { font-size: 13px; padding: 5px 4px; }
   #seltool form { display: none; margin-top: 8px; }
   #seltool textarea {
     width: 100%;
@@ -324,8 +346,9 @@
   <h1>Text Review</h1>
   <div class="legend">
     <span class="l-edit">Edit</span>
-    <span class="l-context">Context</span>
+    <span class="l-question">Question</span>
     <span class="l-options">3 options</span>
+    <span class="l-reject">Reject</span>
   </div>
   <div class="spacer"></div>
   <button id="change-text" style="display:none">Change text</button>
@@ -333,7 +356,10 @@
 
 <main>
   <div id="paste-view">
-    <textarea id="paste-input" placeholder="Paste the text to review…"></textarea>
+    <div class="input-wrap">
+      <textarea id="paste-input" placeholder="Paste the text to review…"></textarea>
+      <button id="paste-clear" type="button" title="Clear the text" aria-label="Clear the text" style="display:none">×</button>
+    </div>
     <div class="row"><button id="start-review" class="primary" disabled>Start review</button></div>
   </div>
 
@@ -352,8 +378,9 @@
 <div id="seltool">
   <div class="types">
     <button data-type="edit">Edit</button>
-    <button data-type="context">Context</button>
+    <button data-type="question">Question</button>
     <button data-type="options">3 options</button>
+    <button data-type="reject">Reject</button>
   </div>
   <form id="seltool-form">
     <textarea id="seltool-comment"></textarea>
@@ -389,15 +416,17 @@
 "use strict";
 
 const TYPES = {
-  edit:    { label: "Edit",    commentRequired: true  },
-  context: { label: "Context", commentRequired: false },
-  options: { label: "3 options", commentRequired: false },
+  edit:     { label: "Edit",      commentRequired: true  },
+  question: { label: "Question",  commentRequired: false },
+  options:  { label: "3 options", commentRequired: false },
+  reject:   { label: "Reject",    commentRequired: false },
 };
 
 const COMMENT_PLACEHOLDERS = {
   edit: "What to change or add (required)",
-  context: "What exactly to focus on (optional)",
+  question: "What exactly to focus on (optional)",
   options: "Describe the problem (optional)",
+  reject: "Why this does not work (optional)",
 };
 
 let text = "";
@@ -422,8 +451,16 @@ fetch("/api/text")
   })
   .catch(() => { serverAvailable = false; });
 
-$("paste-input").addEventListener("input", (e) => {
-  $("start-review").disabled = !e.target.value.trim();
+function syncPasteInput() {
+  const v = $("paste-input").value;
+  $("start-review").disabled = !v.trim();
+  $("paste-clear").style.display = v ? "" : "none";
+}
+$("paste-input").addEventListener("input", syncPasteInput);
+$("paste-clear").addEventListener("click", () => {
+  $("paste-input").value = "";
+  syncPasteInput();
+  $("paste-input").focus();
 });
 $("start-review").addEventListener("click", () => {
   startReview($("paste-input").value);
@@ -434,7 +471,7 @@ $("change-text").addEventListener("click", () => {
   annotations = [];
   hideToolbar();
   $("paste-input").value = text;
-  $("start-review").disabled = !text.trim();
+  syncPasteInput();
   $("review-view").style.display = "none";
   $("compose").style.display = "none";
   $("change-text").style.display = "none";
@@ -483,7 +520,7 @@ function renderCards() {
   cards.textContent = "";
   for (const a of annotations) {
     const card = document.createElement("div");
-    card.className = "card";
+    card.className = `card ${a.type}`;
     card.dataset.id = a.id;
 
     const head = document.createElement("div");
@@ -606,7 +643,7 @@ function showToolbar(rect) {
   left = Math.max(8, Math.min(left, vw - w - 8));
   // below the selection if it fits (leaving room for the expanded form), else above
   let top = rect.bottom + 8;
-  if (top + 180 > vh) top = Math.max(8, rect.top - tool.offsetHeight - 8);
+  if (top + 210 > vh) top = Math.max(8, rect.top - tool.offsetHeight - 8);
   tool.style.top = `${top}px`;
   tool.style.left = `${left}px`;
 }
@@ -695,8 +732,9 @@ function buildPrompt() {
     "I reviewed the text and annotated some passages. Below are the quotes and instructions.",
     "Process the items in order. Annotation types:",
     "- **Edit** — apply the requested change to this passage.",
-    "- **Context** — very briefly (2–4 sentences) explain what this is and how it works.",
+    "- **Question** — very briefly (2–4 sentences) answer what this is and how it works.",
     "- **3 options** — propose options A, B and C with a one-line rationale each; I will pick a direction.",
+    "- **Reject** — I reject this idea: drop it and propose a different approach.",
     "",
     "---",
   ];
@@ -705,12 +743,17 @@ function buildPrompt() {
     if (a.type === "edit") {
       lines.push(`### ${i + 1}. Edit`, "", quoteBlock(a.quote), "",
                  `**Instruction:** ${a.comment.trim()}`);
-    } else if (a.type === "context") {
+    } else if (a.type === "question") {
       // a user comment replaces the generic instruction entirely
-      lines.push(`### ${i + 1}. Context`, "", quoteBlock(a.quote), "",
+      lines.push(`### ${i + 1}. Question`, "", quoteBlock(a.quote), "",
                  a.comment.trim()
-                   ? `**Instruction:** ${a.comment.trim()}`
-                   : "**Instruction:** very briefly explain the context of this passage: what it is and how it works.");
+                   ? `**Question:** ${a.comment.trim()}`
+                   : "**Question:** very briefly explain this passage: what it is and how it works.");
+    } else if (a.type === "reject") {
+      lines.push(`### ${i + 1}. Reject`, "", quoteBlock(a.quote), "",
+                 a.comment.trim()
+                   ? `**Instruction:** I reject this idea — ${a.comment.trim()}. Drop it and propose a different approach.`
+                   : "**Instruction:** I reject this idea. Drop it and propose a different approach.");
     } else {
       lines.push(`### ${i + 1}. 3 options (A/B/C)`, "", quoteBlock(a.quote), "",
                  a.comment.trim()
@@ -724,11 +767,17 @@ function buildPrompt() {
 // Bare quote/answer pairs without the legend — for pasting into a chat with people.
 function buildCondensedPrompt() {
   const FALLBACKS = {
-    context: "what is this and how does it work?",
+    question: "what is this and how does it work?",
     options: "what are the options here? (A/B/C)",
+    reject: "no, let's drop this — propose something else.",
   };
   return annotations
-    .map((a) => quoteBlock(a.quote) + "\n\n" + (a.comment.trim() || FALLBACKS[a.type]))
+    .map((a) => {
+      let body = a.comment.trim() || FALLBACKS[a.type] || "";
+      // without the "no" the rejection reads like a plain remark
+      if (a.type === "reject" && a.comment.trim()) body = "no — " + body;
+      return quoteBlock(a.quote) + "\n\n" + body;
+    })
     .join("\n\n\n");
 }
 
