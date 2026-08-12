@@ -33,17 +33,18 @@ prints a markdown feedback prompt to **stdout** and exits.
 
 ## How to interpret the output
 
-The output is a self-describing markdown prompt with numbered items, each
-quoting a passage of your text. Process the items in order:
+The output is a plain sequence of items separated by blank lines: a passage of
+your text quoted with `>`, then the user's remark about it. Process the items
+in order and read each remark literally — it is what the user wants for that
+passage:
 
-- **Edit** — apply the requested change to that passage.
-- **Question** — briefly (2–4 sentences) explain what that passage means and
-  how it works; an optional **Question** line narrows what to focus on.
-- **3 options (A/B/C)** — propose three alternative solutions with a one-line
-  rationale each, then wait for the user to pick a direction. An optional
-  **Problem** line describes what bothers the user.
-- **Reject** — the user rejects that idea: drop it and propose a different
-  approach. The instruction may carry the reason why it does not work.
+- an instruction ("rename this to X") — apply it to that passage;
+- a question ("what is this and how does it work?") — answer it briefly
+  (2–4 sentences);
+- a request for options ("what are the options here? (A/B/C)") — propose three
+  alternatives with a one-line rationale each, then wait for the user to pick;
+- a rejection (starts with "no" — "no, let's drop this", "no — <reason>") —
+  the user rejects that idea; drop it.
 
 After addressing every item, produce the revised text (or the answers) and,
 if substantial changes were made, offer to run another review round.

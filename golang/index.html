@@ -263,15 +263,6 @@
   }
   #modal h2 { margin: 0; font-size: 16px; }
   #modal .modal-head { display: flex; align-items: center; justify-content: space-between; }
-  #modal .toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--muted);
-    cursor: pointer;
-    user-select: none;
-  }
   #prompt-preview {
     flex: 1;
     overflow: auto;
@@ -400,7 +391,6 @@
   <div id="modal">
     <div class="modal-head">
       <h2>Composed prompt</h2>
-      <label class="toggle"><input type="checkbox" id="condense-toggle">Condense</label>
     </div>
     <pre id="prompt-preview"></pre>
     <div class="row">
@@ -725,51 +715,12 @@ function quoteBlock(s) {
   return q.split("\n").map((line) => "> " + line).join("\n");
 }
 
+// Bare quote/instruction pairs, no legend — reads the same to a human and to an AI.
 function buildPrompt() {
-  const lines = [
-    "# Feedback on your text",
-    "",
-    "I reviewed the text and annotated some passages. Below are the quotes and instructions.",
-    "Process the items in order. Annotation types:",
-    "- **Edit** — apply the requested change to this passage.",
-    "- **Question** — very briefly (2–4 sentences) answer what this is and how it works.",
-    "- **3 options** — propose options A, B and C with a one-line rationale each; I will pick a direction.",
-    "- **Reject** — I reject this idea: drop it and propose a different approach.",
-    "",
-    "---",
-  ];
-  annotations.forEach((a, i) => {
-    lines.push("");
-    if (a.type === "edit") {
-      lines.push(`### ${i + 1}. Edit`, "", quoteBlock(a.quote), "",
-                 `**Instruction:** ${a.comment.trim()}`);
-    } else if (a.type === "question") {
-      // a user comment replaces the generic instruction entirely
-      lines.push(`### ${i + 1}. Question`, "", quoteBlock(a.quote), "",
-                 a.comment.trim()
-                   ? `**Question:** ${a.comment.trim()}`
-                   : "**Question:** very briefly explain this passage: what it is and how it works.");
-    } else if (a.type === "reject") {
-      lines.push(`### ${i + 1}. Reject`, "", quoteBlock(a.quote), "",
-                 a.comment.trim()
-                   ? `**Instruction:** I reject this idea — ${a.comment.trim()}. Drop it and propose a different approach.`
-                   : "**Instruction:** I reject this idea. Drop it and propose a different approach.");
-    } else {
-      lines.push(`### ${i + 1}. 3 options (A/B/C)`, "", quoteBlock(a.quote), "",
-                 a.comment.trim()
-                   ? `**Problem:** ${a.comment.trim()}`
-                   : "**Instruction:** propose 3 solutions (A, B, C) to this, briefly, for me to choose from.");
-    }
-  });
-  return lines.join("\n");
-}
-
-// Bare quote/answer pairs without the legend — for pasting into a chat with people.
-function buildCondensedPrompt() {
   const FALLBACKS = {
     question: "what is this and how does it work?",
     options: "what are the options here? (A/B/C)",
-    reject: "no, let's drop this — propose something else.",
+    reject: "no, let's drop this.",
   };
   return annotations
     .map((a) => {
@@ -786,12 +737,10 @@ function buildCondensedPrompt() {
 let currentPrompt = "";
 
 function updatePreview() {
-  currentPrompt = $("condense-toggle").checked ? buildCondensedPrompt() : buildPrompt();
+  currentPrompt = buildPrompt();
   $("prompt-preview").textContent = currentPrompt;
   $("copy-status").textContent = "";
 }
-
-$("condense-toggle").addEventListener("change", updatePreview);
 
 $("compose").addEventListener("click", () => {
   updatePreview();

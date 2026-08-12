@@ -10,7 +10,7 @@ Annotation types:
 - **Edit** — what to change or add (comment required)
 - **Question** — ask for a super-brief explanation of a passage (optional note)
 - **3 options (A/B/C)** — ask for three solutions to choose from (optional problem description)
-- **Reject** — strike out an idea: drop it and propose a different approach (optional reason)
+- **Reject** — strike out an idea: no, let's drop this (optional reason)
 
 The CLI blocks until you click **Send to CLI & finish** in the browser, then
 prints the prompt to stdout — so `feedback=$(...)` works; all logs go to stderr.
