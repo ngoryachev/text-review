@@ -1,6 +1,6 @@
 ---
 name: text-review
-description: Collect structured human feedback on a plan, draft, or any text before proceeding. Opens a local browser UI where the user annotates passages (edit requests, questions, A/B/C option requests, rejected ideas) and returns a composed markdown feedback prompt. Use when the user should review or steer a plan/answer you produced. Defaults to reviewing the last assistant message if no text is specified.
+description: Collect structured human feedback on a plan, draft, or any text before proceeding. Opens a local browser UI where the user annotates passages (edit requests, questions, A/B/C option requests, approved and rejected passages) and returns a composed markdown feedback prompt. Use when the user should review or steer a plan/answer you produced. Defaults to reviewing the last assistant message if no text is specified.
 ---
 
 # Text Review
@@ -43,6 +43,8 @@ passage:
   (2–4 sentences);
 - a request for options ("what are the options here? (A/B/C)") — propose three
   alternatives with a one-line rationale each, then wait for the user to pick;
+- an approval (starts with "yes" — "yes, this is good — keep it as is",
+  "yes — <note>") — the user approves that passage; keep it as it is;
 - a rejection (starts with "no" — "no, let's drop this", "no — <reason>") —
   the user rejects that idea; drop it.
 

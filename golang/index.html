@@ -15,6 +15,7 @@
     --edit-bg: #fde9b8;     --edit-strong: #b45309;
     --question-bg: #cce7f6; --question-strong: #0369a1;
     --options-bg: #e3d5f5;  --options-strong: #7c3aed;
+    --approve-bg: #cdeed6;  --approve-strong: #15803d;
     --reject-bg: #fbd5d5;   --reject-strong: #b91c1c;
     --danger: #dc2626;
   }
@@ -50,6 +51,7 @@
   .legend .l-edit::before { background: var(--edit-bg); border: 1px solid var(--edit-strong); }
   .legend .l-question::before { background: var(--question-bg); border: 1px solid var(--question-strong); }
   .legend .l-options::before { background: var(--options-bg); border: 1px solid var(--options-strong); }
+  .legend .l-approve::before { background: var(--approve-bg); border: 1px solid var(--approve-strong); }
   .legend .l-reject::before { background: var(--reject-bg); border: 1px solid var(--reject-strong); }
   header .spacer { flex: 1; }
   button {
@@ -123,6 +125,7 @@
   #doc span.hl-edit { background: var(--edit-bg); box-shadow: inset 0 -2px var(--edit-strong); }
   #doc span.hl-question { background: var(--question-bg); box-shadow: inset 0 -2px var(--question-strong); }
   #doc span.hl-options { background: var(--options-bg); box-shadow: inset 0 -2px var(--options-strong); }
+  #doc span.hl-approve { background: var(--approve-bg); box-shadow: inset 0 -2px var(--approve-strong); }
   #doc span.hl-reject {
     background: var(--reject-bg);
     color: var(--reject-strong);
@@ -160,6 +163,7 @@
   .badge.edit { background: var(--edit-bg); color: var(--edit-strong); }
   .badge.question { background: var(--question-bg); color: var(--question-strong); }
   .badge.options { background: var(--options-bg); color: var(--options-strong); }
+  .badge.approve { background: var(--approve-bg); color: var(--approve-strong); }
   .badge.reject { background: var(--reject-bg); color: var(--reject-strong); }
   .card.reject .quote { text-decoration: line-through; text-decoration-color: var(--reject-strong); }
   .card .del {
@@ -209,6 +213,8 @@
   }
   #seltool .types { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   #seltool .types button { font-size: 13px; padding: 5px 4px; }
+  /* odd count: the last button spans the row instead of leaving a hole */
+  #seltool .types button:last-child:nth-child(odd) { grid-column: 1 / -1; }
   #seltool form { display: none; margin-top: 8px; }
   #seltool textarea {
     width: 100%;
@@ -339,6 +345,7 @@
     <span class="l-edit">Edit</span>
     <span class="l-question">Question</span>
     <span class="l-options">3 options</span>
+    <span class="l-approve">Approve</span>
     <span class="l-reject">Reject</span>
   </div>
   <div class="spacer"></div>
@@ -371,6 +378,7 @@
     <button data-type="edit">Edit</button>
     <button data-type="question">Question</button>
     <button data-type="options">3 options</button>
+    <button data-type="approve">Approve</button>
     <button data-type="reject">Reject</button>
   </div>
   <form id="seltool-form">
@@ -409,6 +417,7 @@ const TYPES = {
   edit:     { label: "Edit",      commentRequired: true  },
   question: { label: "Question",  commentRequired: false },
   options:  { label: "3 options", commentRequired: false },
+  approve:  { label: "Approve",   commentRequired: false },
   reject:   { label: "Reject",    commentRequired: false },
 };
 
@@ -416,6 +425,7 @@ const COMMENT_PLACEHOLDERS = {
   edit: "What to change or add (required)",
   question: "What exactly to focus on (optional)",
   options: "Describe the problem (optional)",
+  approve: "What exactly is good here (optional)",
   reject: "Why this does not work (optional)",
 };
 
@@ -720,13 +730,17 @@ function buildPrompt() {
   const FALLBACKS = {
     question: "what is this and how does it work?",
     options: "what are the options here? (A/B/C)",
+    approve: "yes, this is good — keep it as is.",
     reject: "no, let's drop this.",
   };
+  // without the yes/no the verdict reads like a plain remark
+  const PREFIXES = { approve: "yes — ", reject: "no — " };
   return annotations
     .map((a) => {
-      let body = a.comment.trim() || FALLBACKS[a.type] || "";
-      // without the "no" the rejection reads like a plain remark
-      if (a.type === "reject" && a.comment.trim()) body = "no — " + body;
+      const comment = a.comment.trim();
+      const body = comment
+        ? (PREFIXES[a.type] || "") + comment
+        : FALLBACKS[a.type] || "";
       return quoteBlock(a.quote) + "\n\n" + body;
     })
     .join("\n\n\n");
