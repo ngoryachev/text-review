@@ -12,11 +12,8 @@
     --text: #1f2328;
     --muted: #6b7280;
     --accent: #2563eb;
-    --edit-bg: #fde9b8;     --edit-strong: #b45309;
+    --feedback-bg: #fde9b8; --feedback-strong: #b45309;
     --question-bg: #cce7f6; --question-strong: #0369a1;
-    --options-bg: #e3d5f5;  --options-strong: #7c3aed;
-    --approve-bg: #cdeed6;  --approve-strong: #15803d;
-    --reject-bg: #fbd5d5;   --reject-strong: #b91c1c;
     --danger: #dc2626;
   }
   * { box-sizing: border-box; }
@@ -40,7 +37,7 @@
     flex: 0 0 auto;
   }
   header h1 { font-size: 16px; margin: 0; }
-  .legend { display: flex; gap: 12px; font-size: 13px; color: var(--muted); }
+  .legend { display: flex; gap: 12px; font-size: 13px; color: var(--muted); align-items: center; }
   .legend span::before {
     content: "";
     display: inline-block;
@@ -48,11 +45,18 @@
     border-radius: 2px;
     margin-right: 5px;
   }
-  .legend .l-edit::before { background: var(--edit-bg); border: 1px solid var(--edit-strong); }
+  .legend .l-feedback::before { background: var(--feedback-bg); border: 1px solid var(--feedback-strong); }
   .legend .l-question::before { background: var(--question-bg); border: 1px solid var(--question-strong); }
-  .legend .l-options::before { background: var(--options-bg); border: 1px solid var(--options-strong); }
-  .legend .l-approve::before { background: var(--approve-bg); border: 1px solid var(--approve-strong); }
-  .legend .l-reject::before { background: var(--reject-bg); border: 1px solid var(--reject-strong); }
+  .legend .lang {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    cursor: pointer;
+    color: var(--text);
+    user-select: none;
+  }
+  .legend .lang input { margin: 0; }
   header .spacer { flex: 1; }
   button {
     font: inherit;
@@ -122,17 +126,8 @@
     padding: 18px 20px;
   }
   #doc span.hl { cursor: pointer; border-radius: 2px; }
-  #doc span.hl-edit { background: var(--edit-bg); box-shadow: inset 0 -2px var(--edit-strong); }
+  #doc span.hl-feedback { background: var(--feedback-bg); box-shadow: inset 0 -2px var(--feedback-strong); }
   #doc span.hl-question { background: var(--question-bg); box-shadow: inset 0 -2px var(--question-strong); }
-  #doc span.hl-options { background: var(--options-bg); box-shadow: inset 0 -2px var(--options-strong); }
-  #doc span.hl-approve { background: var(--approve-bg); box-shadow: inset 0 -2px var(--approve-strong); }
-  #doc span.hl-reject {
-    background: var(--reject-bg);
-    color: var(--reject-strong);
-    text-decoration: line-through;
-    text-decoration-color: var(--reject-strong);
-    text-decoration-thickness: 2px;
-  }
   #doc span.flash, .card.flash { outline: 2px solid var(--accent); outline-offset: 1px; }
 
   #sidebar {
@@ -160,12 +155,21 @@
     padding: 2px 8px;
     border-radius: 10px;
   }
-  .badge.edit { background: var(--edit-bg); color: var(--edit-strong); }
+  .badge.feedback { background: var(--feedback-bg); color: var(--feedback-strong); }
   .badge.question { background: var(--question-bg); color: var(--question-strong); }
-  .badge.options { background: var(--options-bg); color: var(--options-strong); }
-  .badge.approve { background: var(--approve-bg); color: var(--approve-strong); }
-  .badge.reject { background: var(--reject-bg); color: var(--reject-strong); }
-  .card.reject .quote { text-decoration: line-through; text-decoration-color: var(--reject-strong); }
+  /* the badge is a <select>: click it to change the annotation type */
+  select.badge {
+    font-family: inherit;
+    border: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 20px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.5'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 7px center;
+  }
+  select.badge:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .card .del {
     margin-left: auto;
     border: none;
@@ -193,10 +197,24 @@
     padding: 6px 8px;
     resize: vertical;
     min-height: 34px;
+    display: block;
   }
   .card textarea.invalid { border-color: var(--danger); }
   .card .req-note { color: var(--danger); font-size: 12px; display: none; }
   .card textarea.invalid + .req-note { display: block; }
+
+  /* ---- preset chips (toolbar and cards) ---- */
+  .presets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .presets .preset {
+    font-size: 12px;
+    line-height: 1.3;
+    padding: 3px 9px;
+    border-radius: 999px;
+    text-align: left;
+    white-space: normal;
+    color: var(--muted);
+  }
+  .presets .preset:hover:not(:disabled) { color: var(--accent); }
 
   /* ---- floating selection toolbar ---- */
   /* fixed, not absolute: the panes scroll, body doesn't, so viewport coords are stable */
@@ -209,12 +227,13 @@
     border-radius: 8px;
     box-shadow: 0 6px 24px rgba(0,0,0,.14);
     padding: 8px;
-    width: min(300px, calc(100vw - 16px));
+    width: min(340px, calc(100vw - 16px));
+    max-height: calc(100vh - 16px);
+    overflow: auto;
   }
   #seltool .types { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   #seltool .types button { font-size: 13px; padding: 5px 4px; }
-  /* odd count: the last button spans the row instead of leaving a hole */
-  #seltool .types button:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  #seltool .types button.active { border-color: var(--accent); color: var(--accent); }
   #seltool form { display: none; margin-top: 8px; }
   #seltool textarea {
     width: 100%;
@@ -224,6 +243,7 @@
     padding: 6px 8px;
     resize: vertical;
     min-height: 52px;
+    display: block;
   }
   #seltool .form-row { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
   #seltool .error { color: var(--danger); font-size: 12px; margin-top: 6px; display: none; }
@@ -261,6 +281,7 @@
     background: var(--panel);
     border-radius: 10px;
     width: min(860px, 92vw);
+    height: 86vh;
     max-height: 86vh;
     display: flex;
     flex-direction: column;
@@ -268,10 +289,12 @@
     gap: 12px;
   }
   #modal h2 { margin: 0; font-size: 16px; }
-  #modal .modal-head { display: flex; align-items: center; justify-content: space-between; }
+  #modal .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #modal .modal-head .hint { color: var(--muted); font-size: 13px; }
   #prompt-preview {
     flex: 1;
-    overflow: auto;
+    min-height: 0;
+    width: 100%;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -279,8 +302,11 @@
     font: 13px/1.55 ui-monospace, Consolas, monospace;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+    resize: none;
     margin: 0;
+    color: var(--text);
   }
+  #prompt-preview:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   #modal .row { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
   #modal .row .status { color: var(--muted); font-size: 13px; margin-right: auto; }
 
@@ -323,17 +349,20 @@
     }
 
     #modal-backdrop { padding: 8px; }
-    #modal { width: 100%; max-height: calc(100dvh - 16px); padding: 12px; }
+    #modal { width: 100%; height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); padding: 12px; }
+    #modal .modal-head { flex-wrap: wrap; }
     #modal .row { flex-wrap: wrap; }
     #modal .row .status { flex-basis: 100%; margin-right: 0; }
   }
 
   /* 16px inputs so iOS Safari doesn't zoom in on focus */
   @media (pointer: coarse) {
-    #paste-view textarea, .card textarea, #seltool textarea { font-size: 16px; }
+    #paste-view textarea, .card textarea, #seltool textarea, #prompt-preview { font-size: 16px; }
     button { padding: 8px 14px; }
     #seltool .types button { padding: 8px 4px; }
+    .presets .preset { padding: 6px 10px; font-size: 13px; }
     .card .del { font-size: 20px; padding: 0 8px; }
+    select.badge { font-size: 13px; padding: 4px 22px 4px 10px; }
   }
 </style>
 </head>
@@ -342,11 +371,11 @@
 <header>
   <h1>Text Review</h1>
   <div class="legend">
-    <span class="l-edit">Edit</span>
+    <span class="l-feedback">Feedback</span>
     <span class="l-question">Question</span>
-    <span class="l-options">3 options</span>
-    <span class="l-approve">Approve</span>
-    <span class="l-reject">Reject</span>
+    <label class="lang" title="Insert presets in Russian instead of English">
+      <input type="checkbox" id="preset-ru"> RU presets
+    </label>
   </div>
   <div class="spacer"></div>
   <button id="change-text" style="display:none">Change text</button>
@@ -366,7 +395,7 @@
     <aside id="sidebar">
       <h2>Annotations</h2>
       <div id="cards"></div>
-      <p class="hint" id="sidebar-hint">Select a passage in the text and pick an annotation type.</p>
+      <p class="hint" id="sidebar-hint">Select a passage in the text and pick Feedback or Question.</p>
     </aside>
   </div>
 
@@ -375,14 +404,12 @@
 
 <div id="seltool">
   <div class="types">
-    <button data-type="edit">Edit</button>
+    <button data-type="feedback">Feedback</button>
     <button data-type="question">Question</button>
-    <button data-type="options">3 options</button>
-    <button data-type="approve">Approve</button>
-    <button data-type="reject">Reject</button>
   </div>
   <form id="seltool-form">
     <textarea id="seltool-comment"></textarea>
+    <div id="seltool-presets"></div>
     <div class="form-row">
       <button type="button" id="seltool-cancel">Cancel</button>
       <button type="submit" class="primary" id="seltool-save">Save</button>
@@ -399,10 +426,12 @@
   <div id="modal">
     <div class="modal-head">
       <h2>Composed prompt</h2>
+      <span class="hint">You can edit the text below before copying or sending.</span>
     </div>
-    <pre id="prompt-preview"></pre>
+    <textarea id="prompt-preview" spellcheck="false"></textarea>
     <div class="row">
       <span class="status" id="copy-status"></span>
+      <button id="regen-btn" title="Discard manual edits and rebuild the prompt from the annotations">Reset</button>
       <button id="modal-close">Close</button>
       <button id="copy-btn">Copy</button>
       <button id="send-btn" class="primary">Send to CLI &amp; finish</button>
@@ -414,26 +443,53 @@
 "use strict";
 
 const TYPES = {
-  edit:     { label: "Edit",      commentRequired: true  },
-  question: { label: "Question",  commentRequired: false },
-  options:  { label: "3 options", commentRequired: false },
-  approve:  { label: "Approve",   commentRequired: false },
-  reject:   { label: "Reject",    commentRequired: false },
+  feedback: {
+    label: "Feedback",
+    commentRequired: true,
+    placeholder: "Your verdict or what to change (required)",
+  },
+  question: {
+    label: "Question",
+    commentRequired: false,
+    placeholder: "What to explain (optional, defaults to the first preset)",
+  },
 };
 
-const COMMENT_PLACEHOLDERS = {
-  edit: "What to change or add (required)",
-  question: "What exactly to focus on (optional)",
-  options: "Describe the problem (optional)",
-  approve: "What exactly is good here (optional)",
-  reject: "Why this does not work (optional)",
+// Quick phrases inserted into the comment field with one click; RU/EN via the header checkbox.
+const PRESETS = {
+  feedback: [
+    { en: "Yes",      ru: "Да" },
+    { en: "No",       ru: "Нет" },
+    { en: "Approved", ru: "Подтверждаю" },
+    { en: "Rejected", ru: "Отклоняю" },
+    { en: "Agreed",   ru: "Согласен" },
+  ],
+  question: [
+    { en: "Explain in a couple of sentences",
+      ru: "В паре предложений объясни" },
+    { en: "In a couple of sentences: 1. explain and 2. propose a solution",
+      ru: "В паре предложений 1. объясни и 2. предложи решение" },
+    { en: "Explain with a metaphor",
+      ru: "Объясни на метафоре" },
+    { en: "Explain it like I'm five",
+      ru: "Объясни чтоб было понятно пятилетке" },
+    { en: "Explain this with a mermaid diagram. Pack the diagram into a clickable link",
+      ru: "Объясни это mermaid диаграммой. Запакуй диаграмму в теле кликабельной ссылки" },
+  ],
 };
+
+const LANG_KEY = "presetLang";
+let presetLang = "en";
+try { presetLang = localStorage.getItem(LANG_KEY) === "ru" ? "ru" : "en"; } catch {}
+const presetText = (p) => p[presetLang];
 
 let text = "";
 let annotations = [];   // {id, start, end, quote, type, comment}
 let nextId = 1;
 let pendingRange = null; // {start, end} awaiting a type/comment in the toolbar
+let pendingType = null;  // type chosen in the toolbar, null until a type button is clicked
 let serverAvailable = false; // false: standalone (file://) — clipboard only, no CLI
+const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
 
 const $ = (id) => document.getElementById(id);
 const doc = $("doc");
@@ -487,6 +543,35 @@ function startReview(t) {
   render();
 }
 
+/* ---------- preset language ---------- */
+
+$("preset-ru").checked = presetLang === "ru";
+$("preset-ru").addEventListener("change", (e) => {
+  presetLang = e.target.checked ? "ru" : "en";
+  try { localStorage.setItem(LANG_KEY, presetLang); } catch {}
+  if (pendingType && $("seltool-form").style.display === "block") renderToolbarPresets();
+  render();
+});
+
+/* A row of preset chips; a click replaces the textarea content with the phrase. */
+function buildPresetRow(type, textarea, onChange) {
+  const row = document.createElement("div");
+  row.className = "presets";
+  for (const p of PRESETS[type]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "preset";
+    btn.textContent = presetText(p);
+    btn.addEventListener("click", () => {
+      textarea.value = presetText(p);
+      onChange();
+      if (!coarsePointer) textarea.focus(); // no keyboard pop-up on phones
+    });
+    row.appendChild(btn);
+  }
+  return row;
+}
+
 /* ---------- rendering ---------- */
 
 function render() {
@@ -525,9 +610,21 @@ function renderCards() {
 
     const head = document.createElement("div");
     head.className = "card-head";
-    const badge = document.createElement("span");
-    badge.className = `badge ${a.type}`;
-    badge.textContent = TYPES[a.type].label;
+    // the badge doubles as a type switcher, so a wrong type needs no re-selection
+    const typeSel = document.createElement("select");
+    typeSel.className = `badge ${a.type}`;
+    typeSel.title = "Change annotation type";
+    for (const [key, t] of Object.entries(TYPES)) {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = t.label;
+      opt.selected = key === a.type;
+      typeSel.appendChild(opt);
+    }
+    typeSel.addEventListener("change", () => {
+      a.type = typeSel.value;
+      render();
+    });
     const del = document.createElement("button");
     del.className = "del";
     del.textContent = "×";
@@ -536,7 +633,7 @@ function renderCards() {
       annotations = annotations.filter((x) => x.id !== a.id);
       render();
     });
-    head.append(badge, del);
+    head.append(typeSel, del);
 
     const quote = document.createElement("div");
     quote.className = "quote";
@@ -552,17 +649,18 @@ function renderCards() {
     {
       const ta = document.createElement("textarea");
       ta.value = a.comment;
-      ta.placeholder = COMMENT_PLACEHOLDERS[a.type];
-      ta.addEventListener("input", () => {
+      ta.placeholder = TYPES[a.type].placeholder;
+      const sync = () => {
         a.comment = ta.value;
         ta.classList.toggle("invalid", TYPES[a.type].commentRequired && !ta.value.trim());
         $("compose").disabled = annotations.length === 0 || !allValid();
-      });
+      };
+      ta.addEventListener("input", sync);
       ta.classList.toggle("invalid", TYPES[a.type].commentRequired && !ta.value.trim());
       const note = document.createElement("div");
       note.className = "req-note";
-      note.textContent = "A comment is required for an edit.";
-      card.append(ta, note);
+      note.textContent = "A comment is required for feedback.";
+      card.append(ta, note, buildPresetRow(a.type, ta, sync));
     }
     cards.appendChild(card);
   }
@@ -594,7 +692,7 @@ document.addEventListener("mouseup", (e) => {
 
 /* On touch devices selection happens via long-press handles and never fires
    mouseup, so watch selectionchange instead (debounced while handles move). */
-if (window.matchMedia("(pointer: coarse)").matches) {
+if (coarsePointer) {
   let selTimer;
   document.addEventListener("selectionchange", () => {
     clearTimeout(selTimer);
@@ -622,28 +720,41 @@ function handleSelection() {
   if (end <= start) return;
 
   pendingRange = { start, end };
-  const rect = range.getBoundingClientRect();
-  showToolbar(rect);
+  showToolbar(range.getBoundingClientRect());
 
   if (annotations.some((a) => a.start < end && start < a.end)) {
     showToolbarError("Passages must not overlap.");
   }
 }
 
+let lastRect = null; // viewport rect of the current selection, for re-positioning
+
 function showToolbar(rect) {
+  lastRect = rect;
+  pendingType = null;
   const tool = $("seltool");
   tool.style.display = "block";
   $("seltool-form").style.display = "none";
   $("seltool-error").style.display = "none";
   $("seltool-comment").value = "";
-  const w = tool.offsetWidth || 300;
+  tool.querySelectorAll(".types button").forEach((b) => b.classList.remove("active"));
+  positionToolbar();
+}
+
+/* Called again after the form expands: the toolbar height changes with the presets. */
+function positionToolbar() {
+  const tool = $("seltool");
+  const rect = lastRect;
+  if (!rect) return;
+  const w = tool.offsetWidth || 340;
+  const h = tool.offsetHeight;
   const vw = document.documentElement.clientWidth;
   const vh = window.innerHeight;
   let left = rect.left + rect.width / 2 - w / 2;
   left = Math.max(8, Math.min(left, vw - w - 8));
-  // below the selection if it fits (leaving room for the expanded form), else above
-  let top = rect.bottom + 8;
-  if (top + 210 > vh) top = Math.max(8, rect.top - tool.offsetHeight - 8);
+  let top = rect.bottom + 8;                          // below the selection
+  if (top + h > vh - 8) top = rect.top - h - 8;       // else above it
+  if (top < 8) top = Math.max(8, vh - h - 8);         // neither fits: pin to the bottom edge
   tool.style.top = `${top}px`;
   tool.style.left = `${left}px`;
 }
@@ -658,13 +769,19 @@ function hideToolbar() {
   $("seltool").style.display = "none";
   $("seltool-form").style.display = "none"; // else the selectionchange guard blocks the next selection on touch
   pendingRange = null;
+  pendingType = null;
 }
 
 document.addEventListener("mousedown", (e) => {
   if (!$("seltool").contains(e.target)) hideToolbar();
 });
 
-let pendingType = null;
+function renderToolbarPresets() {
+  const box = $("seltool-presets");
+  box.textContent = "";
+  box.appendChild(buildPresetRow(pendingType, $("seltool-comment"), updateSaveState));
+}
+
 $("seltool").querySelectorAll(".types button").forEach((btn) => {
   btn.addEventListener("click", () => {
     if (!pendingRange) return;
@@ -674,12 +791,16 @@ $("seltool").querySelectorAll(".types button").forEach((btn) => {
       return;
     }
     pendingType = btn.dataset.type;
+    $("seltool").querySelectorAll(".types button").forEach((b) =>
+      b.classList.toggle("active", b === btn));
     const form = $("seltool-form");
     form.style.display = "block";
     const ta = $("seltool-comment");
-    ta.placeholder = COMMENT_PLACEHOLDERS[pendingType];
+    ta.placeholder = TYPES[pendingType].placeholder;
+    renderToolbarPresets();
     updateSaveState();
-    ta.focus();
+    positionToolbar();
+    if (!coarsePointer) ta.focus(); // on phones keep the presets visible instead of the keyboard
   });
 });
 
@@ -725,22 +846,13 @@ function quoteBlock(s) {
   return q.split("\n").map((line) => "> " + line).join("\n");
 }
 
-// Bare quote/instruction pairs, no legend — reads the same to a human and to an AI.
+// Bare quote/remark pairs, no legend — reads the same to a human and to an AI.
+// An empty question falls back to the first question preset in the current language.
 function buildPrompt() {
-  const FALLBACKS = {
-    question: "what is this and how does it work?",
-    options: "what are the options here? (A/B/C)",
-    approve: "yes, this is good — keep it as is.",
-    reject: "no, let's drop this.",
-  };
-  // without the yes/no the verdict reads like a plain remark
-  const PREFIXES = { approve: "yes — ", reject: "no — " };
   return annotations
     .map((a) => {
       const comment = a.comment.trim();
-      const body = comment
-        ? (PREFIXES[a.type] || "") + comment
-        : FALLBACKS[a.type] || "";
+      const body = comment || (a.type === "question" ? presetText(PRESETS.question[0]) : "");
       return quoteBlock(a.quote) + "\n\n" + body;
     })
     .join("\n\n\n");
@@ -748,19 +860,36 @@ function buildPrompt() {
 
 /* ---------- modal ---------- */
 
-let currentPrompt = "";
+// The preview is editable. Manual edits survive close/reopen as long as the
+// annotations did not change; otherwise the prompt is rebuilt from scratch.
+let lastGenerated = null;
 
-function updatePreview() {
-  currentPrompt = buildPrompt();
-  $("prompt-preview").textContent = currentPrompt;
-  $("copy-status").textContent = "";
+const promptValue = () => $("prompt-preview").value;
+
+function syncModalButtons() {
+  const empty = !promptValue().trim();
+  $("copy-btn").disabled = empty;
+  $("send-btn").disabled = empty;
+}
+$("prompt-preview").addEventListener("input", syncModalButtons);
+
+function setGeneratedPrompt() {
+  lastGenerated = buildPrompt();
+  $("prompt-preview").value = lastGenerated;
+  syncModalButtons();
 }
 
 $("compose").addEventListener("click", () => {
-  updatePreview();
+  if (buildPrompt() !== lastGenerated) setGeneratedPrompt();
+  syncModalButtons();
+  $("copy-status").textContent = "";
   $("send-btn").style.display = serverAvailable ? "" : "none";
   $("copy-btn").classList.toggle("primary", !serverAvailable);
   $("modal-backdrop").style.display = "flex";
+});
+$("regen-btn").addEventListener("click", () => {
+  setGeneratedPrompt();
+  $("copy-status").textContent = "Rebuilt from the annotations.";
 });
 $("modal-close").addEventListener("click", () => {
   $("modal-backdrop").style.display = "none";
@@ -770,12 +899,13 @@ $("modal-backdrop").addEventListener("mousedown", (e) => {
 });
 
 async function copyPrompt() {
+  const value = promptValue();
   try {
-    await navigator.clipboard.writeText(currentPrompt);
+    await navigator.clipboard.writeText(value);
     return true;
   } catch {
     const ta = document.createElement("textarea");
-    ta.value = currentPrompt;
+    ta.value = value;
     document.body.appendChild(ta);
     ta.select();
     let ok = false;
@@ -790,12 +920,13 @@ $("copy-btn").addEventListener("click", async () => {
 });
 
 $("send-btn").addEventListener("click", async () => {
+  const prompt = promptValue();
   await copyPrompt();
   try {
     const r = await fetch("/api/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: currentPrompt, annotations }),
+      body: JSON.stringify({ prompt, annotations }),
     });
     if (!r.ok) throw new Error(await r.text());
   } catch (err) {

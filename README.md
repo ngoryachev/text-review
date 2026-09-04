@@ -7,11 +7,18 @@ speed up the feedback loop in AI systems.
 
 Annotation types:
 
-- **Edit** — what to change or add (comment required)
-- **Question** — ask for a super-brief explanation of a passage (optional note)
-- **3 options (A/B/C)** — ask for three solutions to choose from (optional problem description)
-- **Approve** — mark a passage as good: keep it as is (optional note)
-- **Reject** — strike out an idea: no, let's drop this (optional reason)
+- **Feedback** — your verdict on a passage or what to change (comment required)
+- **Question** — ask to explain a passage (optional; an empty question defaults to
+  "Explain in a couple of sentences")
+
+Both types come with one-click presets under the comment field (Feedback: yes / no /
+approved / rejected / agreed; Question: brief explanation, explanation + solution,
+metaphor, "like I'm five", mermaid diagram packed into a clickable link). A preset
+replaces the field content and can be edited further. The **RU presets** checkbox in
+the header switches the presets to Russian (English by default; the choice is
+remembered in the browser). The type of an existing annotation can be changed from
+its card without re-selecting the passage, and the composed prompt can be edited
+directly before copying or sending.
 
 The CLI blocks until you click **Send to CLI & finish** in the browser, then
 prints the prompt to stdout — so `feedback=$(...)` works; all logs go to stderr.

@@ -1,6 +1,6 @@
 ---
 name: text-review
-description: Collect structured human feedback on a plan, draft, or any text before proceeding. Opens a local browser UI where the user annotates passages (edit requests, questions, A/B/C option requests, approved and rejected passages) and returns a composed markdown feedback prompt. Use when the user should review or steer a plan/answer you produced. Defaults to reviewing the last assistant message if no text is specified.
+description: Collect structured human feedback on a plan, draft, or any text before proceeding. Opens a local browser UI where the user annotates passages with feedback (verdicts, change requests) or questions (explanation requests, with quick presets) and returns a composed markdown feedback prompt. Use when the user should review or steer a plan/answer you produced. Defaults to reviewing the last assistant message if no text is specified.
 ---
 
 # Text Review
@@ -34,19 +34,28 @@ prints a markdown feedback prompt to **stdout** and exits.
 ## How to interpret the output
 
 The output is a plain sequence of items separated by blank lines: a passage of
-your text quoted with `>`, then the user's remark about it. Process the items
-in order and read each remark literally — it is what the user wants for that
-passage:
+your text quoted with `>`, then the user's remark about it. The user may have
+edited the prompt by hand before sending, so read it as a whole, not as a fixed
+template. Remarks may be in English or Russian — answer each one in its own
+language. Process the items in order and read each remark literally — it is what
+the user wants for that passage:
 
-- an instruction ("rename this to X") — apply it to that passage;
-- a question ("what is this and how does it work?") — answer it briefly
-  (2–4 sentences);
-- a request for options ("what are the options here? (A/B/C)") — propose three
-  alternatives with a one-line rationale each, then wait for the user to pick;
-- an approval (starts with "yes" — "yes, this is good — keep it as is",
-  "yes — <note>") — the user approves that passage; keep it as it is;
-- a rejection (starts with "no" — "no, let's drop this", "no — <reason>") —
-  the user rejects that idea; drop it.
+- **Feedback** — a verdict or an instruction:
+  - "yes" / "approved" / "agreed" (or "да" / "подтверждаю" / "согласен") — the
+    user approves that passage; keep it as it is;
+  - "no" / "rejected" (or "нет" / "отклоняю") — the user rejects that idea; drop it;
+  - anything else ("rename this to X", "add a fallback here") — apply it to that
+    passage.
+- **Question** — a request to explain the passage; follow the requested form
+  exactly:
+  - "explain in a couple of sentences" — 2–4 sentences;
+  - "1. explain and 2. propose a solution" — a short explanation, then a concrete
+    proposal;
+  - "explain with a metaphor" / "explain it like I'm five" — use that style;
+  - "explain this with a mermaid diagram, pack the diagram into a clickable link"
+    — write the mermaid source and provide it as a clickable link (for example a
+    mermaid.live or mermaid.ink URL with the encoded diagram), so the user can
+    open it on any device.
 
 After addressing every item, produce the revised text (or the answers) and,
 if substantial changes were made, offer to run another review round.
