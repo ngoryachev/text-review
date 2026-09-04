@@ -57,6 +57,8 @@ the user wants for that passage:
     — write the mermaid source and provide it as a clickable link (for example a
     mermaid.live or mermaid.ink URL with the encoded diagram), so the user can
     open it on any device.
+  - "propose three options (A/B/C) to choose from" — three alternatives with a
+    one-line rationale each, then wait for the user to pick one.
 
 After addressing every item, produce the revised text (or the answers) and,
 if substantial changes were made, offer to run another review round.
