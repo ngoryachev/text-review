@@ -43,7 +43,8 @@ the user wants for that passage:
 - **Feedback** — a verdict or an instruction:
   - "yes" / "approved" / "agreed" (or "да" / "подтверждаю" / "согласен") — the
     user approves that passage; keep it as it is;
-  - "no" / "rejected" (or "нет" / "отклоняю") — the user rejects that idea; drop it;
+  - "no" / "rejected" / "disagreed" (or "нет" / "отклоняю" / "не согласен") —
+    the user rejects or objects to that idea; drop it or rethink it;
   - anything else ("rename this to X", "add a fallback here") — apply it to that
     passage.
 - **Question** — a request to explain the passage; follow the requested form
