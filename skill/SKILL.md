@@ -45,6 +45,10 @@ the user wants for that passage:
     user approves that passage; keep it as it is;
   - "no" / "rejected" / "disagreed" (or "нет" / "отклоняю" / "не согласен") —
     the user rejects or objects to that idea; drop it or rethink it;
+  - "delete this passage" (or "удали этот участок") — remove that passage from
+    the text;
+  - "I'll do this myself" (or "сделаю") — the user takes that item on
+    themselves; leave the passage as it is and do not act on it;
   - anything else ("rename this to X", "add a fallback here") — apply it to that
     passage.
 - **Question** — a request to explain the passage; follow the requested form
@@ -58,7 +62,10 @@ the user wants for that passage:
     mermaid.live or mermaid.ink URL with the encoded diagram), so the user can
     open it on any device.
   - "propose three options (A/B/C) to choose from" — three alternatives with a
-    one-line rationale each, then wait for the user to pick one.
+    one-line rationale each, then wait for the user to pick one;
+  - "what are the downsides?" / "how?" / "why?" / "rationale?" (or "какие
+    минусы?" / "как?" / "почему?" / "обоснование?") — answer that exact
+    question about the passage in 2–4 sentences.
 
 After addressing every item, produce the revised text (or the answers) and,
 if substantial changes were made, offer to run another review round.

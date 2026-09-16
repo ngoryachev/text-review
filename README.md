@@ -12,9 +12,10 @@ Annotation types:
   "Explain in a couple of sentences")
 
 Both types come with one-click presets under the comment field (Feedback: yes / no /
-approved / rejected / agreed / disagreed; Question: brief explanation, explanation + solution,
-metaphor, "like I'm five", mermaid diagram packed into a clickable link, three
-options A/B/C to choose from). A preset
+approved / rejected / agreed / disagreed / delete this passage / I'll do this myself;
+Question: brief explanation, explanation + solution, metaphor, "like I'm five", mermaid
+diagram packed into a clickable link, three options A/B/C to choose from, downsides,
+how, why, rationale). A preset
 replaces the field content and can be edited further. The **RU presets** checkbox in
 the header switches the presets to Russian (English by default; the choice is
 remembered in the browser). The type of an existing annotation can be changed from
