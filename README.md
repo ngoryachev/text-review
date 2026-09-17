@@ -50,6 +50,20 @@ golang/text-review --port 8377 --no-open plan.md   # Go: flags go before the fil
 
 Exit codes: `0` — prompt printed to stdout; `1` — input error; `130` — cancelled (Ctrl+C).
 
+## History
+
+Every review you **Copy** or **Send to CLI** is saved in the browser's
+localStorage (the text, the annotations and the composed prompt), newest first.
+The **History** button in the header lists them; click one to open it read-only
+(highlights, cards with comments, **Copy prompt**), **Back** returns to the
+review in progress, and **×** deletes an entry. Copying or sending the same
+review again updates its entry instead of adding a duplicate.
+
+Up to 100 entries are kept; when the browser's storage quota is hit, the oldest
+entries are dropped until the new one fits. History is per browser origin, so
+it accumulates on the GitHub Pages site (and on a fixed `--port`), while each
+run of the CLI on a random port starts with an empty list.
+
 ## Building the Go binary
 
 ```bash

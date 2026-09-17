@@ -170,7 +170,7 @@
     background-position: right 7px center;
   }
   select.badge:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .card .del {
+  .card .del, .hist-item .del {
     margin-left: auto;
     border: none;
     background: none;
@@ -178,7 +178,8 @@
     font-size: 16px;
     padding: 0 4px;
   }
-  .card .del:hover { color: var(--danger); }
+  .card .del:hover, .hist-item .del:hover { color: var(--danger); }
+  .card .comment { font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .card .quote {
     font: 12px/1.5 ui-monospace, Consolas, monospace;
     color: var(--muted);
@@ -268,7 +269,7 @@
   }
 
   /* ---- modal ---- */
-  #modal-backdrop {
+  .backdrop {
     position: fixed;
     inset: 0;
     background: rgba(15,18,25,.5);
@@ -277,7 +278,7 @@
     justify-content: center;
     z-index: 40;
   }
-  #modal {
+  .dialog {
     background: var(--panel);
     border-radius: 10px;
     width: min(860px, 92vw);
@@ -288,9 +289,9 @@
     padding: 16px;
     gap: 12px;
   }
-  #modal h2 { margin: 0; font-size: 16px; }
-  #modal .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  #modal .modal-head .hint { color: var(--muted); font-size: 13px; }
+  .dialog h2 { margin: 0; font-size: 16px; }
+  .dialog .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .dialog .modal-head .hint { color: var(--muted); font-size: 13px; }
   #prompt-preview {
     flex: 1;
     min-height: 0;
@@ -307,8 +308,46 @@
     color: var(--text);
   }
   #prompt-preview:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  #modal .row { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
-  #modal .row .status { color: var(--muted); font-size: 13px; margin-right: auto; }
+  .dialog .row { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  .dialog .row .status { color: var(--muted); font-size: 13px; margin-right: auto; }
+
+  /* ---- history ---- */
+  #history-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+  }
+  .hist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .hist-item:last-child { border-bottom: none; }
+  .hist-item:hover { background: var(--panel); }
+  .hist-item .main { flex: 1; min-width: 0; }
+  .hist-item .title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist-item .meta { font-size: 12px; color: var(--muted); }
+  #history-list .empty { padding: 24px; text-align: center; color: var(--muted); }
+
+  /* read-only banner shown while viewing a past review */
+  #view-banner {
+    display: none;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    background: var(--question-bg);
+    border-bottom: 1px solid var(--border);
+  }
+  #view-banner .spacer { flex: 1; }
+  #view-banner .status { color: var(--muted); }
 
   #done-view {
     display: none;
@@ -348,11 +387,12 @@
       bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     }
 
-    #modal-backdrop { padding: 8px; }
-    #modal { width: 100%; height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); padding: 12px; }
-    #modal .modal-head { flex-wrap: wrap; }
-    #modal .row { flex-wrap: wrap; }
-    #modal .row .status { flex-basis: 100%; margin-right: 0; }
+    .backdrop { padding: 8px; }
+    .dialog { width: 100%; height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); padding: 12px; }
+    .dialog .modal-head { flex-wrap: wrap; }
+    .dialog .row { flex-wrap: wrap; }
+    .dialog .row .status { flex-basis: 100%; margin-right: 0; }
+    #view-banner { flex-wrap: wrap; padding: 8px 12px; }
   }
 
   /* 16px inputs so iOS Safari doesn't zoom in on focus */
@@ -378,8 +418,17 @@
     </label>
   </div>
   <div class="spacer"></div>
+  <button id="history-btn" title="Previous reviews saved in this browser">History</button>
   <button id="change-text" style="display:none">Change text</button>
 </header>
+
+<div id="view-banner">
+  <span>Viewing review from <strong id="view-date"></strong></span>
+  <span class="status" id="view-status"></span>
+  <span class="spacer"></span>
+  <button id="view-copy">Copy prompt</button>
+  <button id="view-back" class="primary">Back</button>
+</div>
 
 <main>
   <div id="paste-view">
@@ -422,8 +471,8 @@
   Compose prompt<span class="count" id="compose-count">0</span>
 </button>
 
-<div id="modal-backdrop">
-  <div id="modal">
+<div id="modal-backdrop" class="backdrop">
+  <div id="modal" class="dialog">
     <div class="modal-head">
       <h2>Composed prompt</h2>
       <span class="hint">You can edit the text below before copying or sending.</span>
@@ -435,6 +484,19 @@
       <button id="modal-close">Close</button>
       <button id="copy-btn">Copy</button>
       <button id="send-btn" class="primary">Send to CLI &amp; finish</button>
+    </div>
+  </div>
+</div>
+
+<div id="history-backdrop" class="backdrop">
+  <div id="history" class="dialog">
+    <div class="modal-head">
+      <h2>History</h2>
+      <span class="hint">Saved in this browser when you copy or send a prompt.</span>
+    </div>
+    <div id="history-list"></div>
+    <div class="row">
+      <button id="history-close">Close</button>
     </div>
   </div>
 </div>
@@ -498,6 +560,8 @@ let nextId = 1;
 let pendingRange = null; // {start, end} awaiting a type/comment in the toolbar
 let pendingType = null;  // type chosen in the toolbar, null until a type button is clicked
 let serverAvailable = false; // false: standalone (file://) — clipboard only, no CLI
+let viewing = null;      // {entry, stash: {text, annotations, nextId, wasReviewing}} while a past review is open read-only
+let localEntryId = null; // history id of the current review session, so repeated Copy/Send upsert instead of duplicating
 const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
 
 const $ = (id) => document.getElementById(id);
@@ -545,6 +609,7 @@ $("change-text").addEventListener("click", () => {
 
 function startReview(t) {
   text = t.replace(/\r\n/g, "\n");
+  localEntryId = null;
   $("paste-view").style.display = "none";
   $("review-view").style.display = "flex";
   $("change-text").style.display = "";
@@ -590,7 +655,7 @@ function render() {
   const n = annotations.length;
   $("compose-count").textContent = n;
   $("compose").disabled = n === 0 || !allValid();
-  $("sidebar-hint").style.display = n ? "none" : "";
+  $("sidebar-hint").style.display = (n || viewing) ? "none" : "";
 }
 
 function renderDoc() {
@@ -619,30 +684,37 @@ function renderCards() {
 
     const head = document.createElement("div");
     head.className = "card-head";
-    // the badge doubles as a type switcher, so a wrong type needs no re-selection
-    const typeSel = document.createElement("select");
-    typeSel.className = `badge ${a.type}`;
-    typeSel.title = "Change annotation type";
-    for (const [key, t] of Object.entries(TYPES)) {
-      const opt = document.createElement("option");
-      opt.value = key;
-      opt.textContent = t.label;
-      opt.selected = key === a.type;
-      typeSel.appendChild(opt);
+    if (viewing) {
+      const badge = document.createElement("span");
+      badge.className = `badge ${a.type}`;
+      badge.textContent = TYPES[a.type].label;
+      head.appendChild(badge);
+    } else {
+      // the badge doubles as a type switcher, so a wrong type needs no re-selection
+      const typeSel = document.createElement("select");
+      typeSel.className = `badge ${a.type}`;
+      typeSel.title = "Change annotation type";
+      for (const [key, t] of Object.entries(TYPES)) {
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = t.label;
+        opt.selected = key === a.type;
+        typeSel.appendChild(opt);
+      }
+      typeSel.addEventListener("change", () => {
+        a.type = typeSel.value;
+        render();
+      });
+      const del = document.createElement("button");
+      del.className = "del";
+      del.textContent = "×";
+      del.title = "Delete annotation";
+      del.addEventListener("click", () => {
+        annotations = annotations.filter((x) => x.id !== a.id);
+        render();
+      });
+      head.append(typeSel, del);
     }
-    typeSel.addEventListener("change", () => {
-      a.type = typeSel.value;
-      render();
-    });
-    const del = document.createElement("button");
-    del.className = "del";
-    del.textContent = "×";
-    del.title = "Delete annotation";
-    del.addEventListener("click", () => {
-      annotations = annotations.filter((x) => x.id !== a.id);
-      render();
-    });
-    head.append(typeSel, del);
 
     const quote = document.createElement("div");
     quote.className = "quote";
@@ -655,7 +727,12 @@ function renderCards() {
 
     card.append(head, quote);
 
-    {
+    if (viewing) {
+      const c = document.createElement("div");
+      c.className = "comment";
+      c.textContent = a.comment.trim() || (a.type === "question" ? presetText(PRESETS.question[0]) : "");
+      card.append(c);
+    } else {
       const ta = document.createElement("textarea");
       ta.value = a.comment;
       ta.placeholder = TYPES[a.type].placeholder;
@@ -716,6 +793,7 @@ if (coarsePointer) {
 }
 
 function handleSelection() {
+  if (viewing) return; // past reviews are read-only
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
   const range = sel.getRangeAt(0);
@@ -907,8 +985,7 @@ $("modal-backdrop").addEventListener("mousedown", (e) => {
   if (e.target === e.currentTarget) $("modal-backdrop").style.display = "none";
 });
 
-async function copyPrompt() {
-  const value = promptValue();
+async function copyText(value) {
   try {
     await navigator.clipboard.writeText(value);
     return true;
@@ -924,13 +1001,17 @@ async function copyPrompt() {
   }
 }
 
+const copyPrompt = () => copyText(promptValue());
+
 $("copy-btn").addEventListener("click", async () => {
   $("copy-status").textContent = (await copyPrompt()) ? "Copied to clipboard." : "Copy failed.";
+  saveCurrentToHistory();
 });
 
 $("send-btn").addEventListener("click", async () => {
   const prompt = promptValue();
   await copyPrompt();
+  saveCurrentToHistory();
   try {
     const r = await fetch("/api/submit", {
       method: "POST",
@@ -946,7 +1027,178 @@ $("send-btn").addEventListener("click", async () => {
   $("review-view").style.display = "none";
   $("compose").style.display = "none";
   $("change-text").style.display = "none";
+  $("history-btn").style.display = "none";
   $("done-view").style.display = "flex";
+});
+
+/* ---------- history ---------- */
+
+// Past reviews live in this browser's localStorage only: newest first, capped by
+// count, and when the browser quota is hit the oldest entries are dropped until
+// the write fits. Everything is wrapped in try/catch so a blocked storage
+// (file://, private mode) just means "no history", never a broken page.
+const HISTORY_KEY = "reviewHistory";
+const HISTORY_CAP = 100;
+
+const historyStore = {
+  _read() {
+    try {
+      const v = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+      return Array.isArray(v) ? v : [];
+    } catch { return []; }
+  },
+  _write(entries) {
+    // drop the oldest until it fits; give up silently if even one entry doesn't
+    for (let list = entries.slice(0, HISTORY_CAP); ; list = list.slice(0, -1)) {
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+        return true;
+      } catch {
+        if (list.length === 0) return false;
+      }
+    }
+  },
+  list() {
+    return this._read().map(({ id, created_at, title, count }) => ({ id, created_at, title, count }));
+  },
+  get(id) { return this._read().find((e) => e.id === id) || null; },
+  remove(id) { return this._write(this._read().filter((e) => e.id !== id)); },
+  add(entry) { return this._write([entry, ...this._read().filter((e) => e.id !== entry.id)]); },
+};
+
+function titleOf(t) {
+  const line = t.split("\n").map((l) => l.trim()).find((l) => l) || "";
+  const clean = line.replace(/^#+\s*/, "");
+  if (!clean) return "(untitled)";
+  return clean.length > 80 ? clean.slice(0, 80) + "…" : clean;
+}
+
+function saveCurrentToHistory() {
+  if (viewing) return;
+  if (!localEntryId) localEntryId = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+  historyStore.add({
+    id: localEntryId,
+    created_at: new Date().toISOString(),
+    title: titleOf(text),
+    count: annotations.length,
+    text,
+    annotations: annotations.map((a) => ({ ...a })),
+    prompt: promptValue(),
+  });
+}
+
+const fmtDate = (iso) => new Date(iso).toLocaleString();
+
+function openHistory() {
+  renderHistoryList(historyStore.list());
+  $("history-backdrop").style.display = "flex";
+}
+
+function closeHistory() {
+  $("history-backdrop").style.display = "none";
+}
+
+function renderHistoryList(entries) {
+  const box = $("history-list");
+  box.textContent = "";
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "No previous reviews yet.";
+    box.appendChild(empty);
+    return;
+  }
+  for (const e of entries) {
+    const item = document.createElement("div");
+    item.className = "hist-item";
+    item.dataset.id = e.id;
+
+    const main = document.createElement("div");
+    main.className = "main";
+    const title = document.createElement("div");
+    title.className = "title";
+    title.textContent = e.title;
+    title.title = e.title;
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = `${fmtDate(e.created_at)} · ${e.count} annotation${e.count === 1 ? "" : "s"}`;
+    main.append(title, meta);
+
+    const del = document.createElement("button");
+    del.className = "del";
+    del.textContent = "×";
+    del.title = "Delete from history";
+    del.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      historyStore.remove(e.id);
+      renderHistoryList(historyStore.list());
+    });
+
+    item.append(main, del);
+    item.addEventListener("click", () => {
+      const entry = historyStore.get(e.id);
+      if (!entry) { renderHistoryList(historyStore.list()); return; }
+      closeHistory();
+      enterViewing(entry);
+    });
+    box.appendChild(item);
+  }
+}
+
+function enterViewing(entry) {
+  hideToolbar();
+  if (!viewing) {
+    viewing = { entry, stash: { text, annotations, nextId,
+      wasReviewing: $("review-view").style.display === "flex" } };
+  } else {
+    viewing.entry = entry; // switching between past reviews keeps the original stash
+  }
+  text = entry.text || "";
+  annotations = (entry.annotations || []).map((a) => ({ ...a }));
+  nextId = 1;
+  $("view-date").textContent = fmtDate(entry.created_at);
+  $("view-status").textContent = "";
+  $("paste-view").style.display = "none";
+  $("compose").style.display = "none";
+  $("change-text").style.display = "none";
+  $("review-view").style.display = "flex";
+  $("view-banner").style.display = "flex";
+  render();
+  $("doc-pane").scrollTop = 0;
+  $("sidebar").scrollTop = 0;
+}
+
+function exitViewing() {
+  if (!viewing) return;
+  const { stash } = viewing;
+  viewing = null;
+  text = stash.text;
+  annotations = stash.annotations;
+  nextId = stash.nextId;
+  $("view-banner").style.display = "none";
+  if (stash.wasReviewing) {
+    $("review-view").style.display = "flex";
+    $("compose").style.display = "";
+    $("change-text").style.display = "";
+    render();
+  } else {
+    doc.textContent = "";
+    $("cards").textContent = "";
+    $("review-view").style.display = "none";
+    $("paste-view").style.display = "flex";
+  }
+}
+
+$("history-btn").addEventListener("click", openHistory);
+$("history-close").addEventListener("click", closeHistory);
+$("history-backdrop").addEventListener("mousedown", (e) => {
+  if (e.target === e.currentTarget) closeHistory();
+});
+$("view-back").addEventListener("click", exitViewing);
+$("view-copy").addEventListener("click", async () => {
+  if (!viewing) return;
+  const ok = await copyText(viewing.entry.prompt || "");
+  $("view-status").textContent = ok ? "Copied." : "Copy failed.";
 });
 </script>
 </body>
