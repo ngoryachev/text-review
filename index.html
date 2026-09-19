@@ -585,10 +585,14 @@ function syncPasteInput() {
   $("start-review").disabled = !v.trim();
   $("paste-clear").style.display = v ? "" : "none";
 }
-$("paste-input").addEventListener("input", syncPasteInput);
+$("paste-input").addEventListener("input", () => {
+  syncPasteInput();
+  saveDraft();
+});
 $("paste-clear").addEventListener("click", () => {
   $("paste-input").value = "";
   syncPasteInput();
+  saveDraft();
   $("paste-input").focus();
 });
 $("start-review").addEventListener("click", () => {
@@ -605,6 +609,7 @@ $("change-text").addEventListener("click", () => {
   $("compose").style.display = "none";
   $("change-text").style.display = "none";
   $("paste-view").style.display = "flex";
+  saveDraft();
 });
 
 function startReview(t) {
@@ -615,6 +620,7 @@ function startReview(t) {
   $("change-text").style.display = "";
   $("compose").style.display = "";
   render();
+  saveDraft();
 }
 
 /* ---------- preset language ---------- */
@@ -704,6 +710,7 @@ function renderCards() {
       typeSel.addEventListener("change", () => {
         a.type = typeSel.value;
         render();
+        saveDraft();
       });
       const del = document.createElement("button");
       del.className = "del";
@@ -712,6 +719,7 @@ function renderCards() {
       del.addEventListener("click", () => {
         annotations = annotations.filter((x) => x.id !== a.id);
         render();
+        saveDraft();
       });
       head.append(typeSel, del);
     }
@@ -740,6 +748,7 @@ function renderCards() {
         a.comment = ta.value;
         ta.classList.toggle("invalid", TYPES[a.type].commentRequired && !ta.value.trim());
         $("compose").disabled = annotations.length === 0 || !allValid();
+        saveDraft();
       };
       ta.addEventListener("input", sync);
       ta.classList.toggle("invalid", TYPES[a.type].commentRequired && !ta.value.trim());
@@ -923,6 +932,7 @@ function addAnnotation(type, comment) {
   hideToolbar();
   window.getSelection().removeAllRanges();
   render();
+  saveDraft();
 }
 
 /* ---------- prompt composition ---------- */
@@ -1066,6 +1076,71 @@ const historyStore = {
   add(entry) { return this._write([entry, ...this._read().filter((e) => e.id !== entry.id)]); },
 };
 
+/* ---------- draft ---------- */
+
+// The unfinished work (pasted text, or a review that has not reached the history
+// via Copy/Send yet) is mirrored to localStorage on every change and restored on
+// load, so an accidental reload or a closed tab loses nothing. Standalone (web)
+// only: under the CLI the text comes from the server and no draft is ever written.
+const DRAFT_KEY = "reviewDraft";
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch {}
+}
+
+function saveDraft() {
+  if (serverAvailable) return;
+  if (viewing) return; // text/annotations belong to a past review right now
+  let draft;
+  if ($("review-view").style.display === "flex") {
+    draft = { stage: "review", text, annotations, nextId, localEntryId };
+  } else {
+    const v = $("paste-input").value;
+    if (!v) { clearDraft(); return; }
+    draft = { stage: "paste", text: v };
+  }
+  const json = JSON.stringify(draft);
+  // the draft matters more than old history: on a full quota drop the oldest entries until it fits
+  for (;;) {
+    try {
+      localStorage.setItem(DRAFT_KEY, json);
+      return;
+    } catch {
+      const entries = historyStore._read();
+      if (!entries.length || !historyStore._write(entries.slice(0, -1))) return;
+    }
+  }
+}
+
+function loadDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+    if (!d || typeof d.text !== "string" || !d.text) return null;
+    if (d.stage === "paste") return d;
+    if (d.stage !== "review" || !Array.isArray(d.annotations)) return null;
+    const ok = d.annotations.every((a) =>
+      a && Number.isInteger(a.id) && Number.isInteger(a.start) && Number.isInteger(a.end) &&
+      a.start >= 0 && a.start < a.end && a.end <= d.text.length &&
+      TYPES[a.type] && typeof a.comment === "string" && typeof a.quote === "string");
+    return ok ? d : null;
+  } catch { return null; }
+}
+
+function restoreDraft() {
+  const d = loadDraft();
+  if (!d) return;
+  if (d.stage === "paste") {
+    $("paste-input").value = d.text;
+    syncPasteInput();
+    return;
+  }
+  annotations = d.annotations;
+  nextId = Math.max(Number.isInteger(d.nextId) ? d.nextId : 1, ...annotations.map((a) => a.id + 1));
+  startReview(d.text);
+  localEntryId = typeof d.localEntryId === "string" ? d.localEntryId : null;
+  saveDraft();
+}
+
 function titleOf(t) {
   const line = t.split("\n").map((l) => l.trim()).find((l) => l) || "";
   const clean = line.replace(/^#+\s*/, "");
@@ -1085,6 +1160,7 @@ function saveCurrentToHistory() {
     annotations: annotations.map((a) => ({ ...a })),
     prompt: promptValue(),
   });
+  clearDraft(); // it is in the history now; any further edit starts a new draft
 }
 
 const fmtDate = (iso) => new Date(iso).toLocaleString();
@@ -1200,6 +1276,8 @@ $("view-copy").addEventListener("click", async () => {
   const ok = await copyText(viewing.entry.prompt || "");
   $("view-status").textContent = ok ? "Copied." : "Copy failed.";
 });
+
+restoreDraft();
 </script>
 </body>
 </html>
