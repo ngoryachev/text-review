@@ -14,6 +14,7 @@
     --accent: #2563eb;
     --feedback-bg: #fde9b8; --feedback-strong: #b45309;
     --question-bg: #cce7f6; --question-strong: #0369a1;
+    --summary-bg: #d7f0dc; --summary-strong: #15803d;
     --danger: #dc2626;
   }
   * { box-sizing: border-box; }
@@ -157,6 +158,8 @@
   }
   .badge.feedback { background: var(--feedback-bg); color: var(--feedback-strong); }
   .badge.question { background: var(--question-bg); color: var(--question-strong); }
+  .badge.summary { background: var(--summary-bg); color: var(--summary-strong); }
+  .card.summary .quote { cursor: default; }
   /* the badge is a <select>: click it to change the annotation type */
   select.badge {
     font-family: inherit;
@@ -515,6 +518,12 @@ const TYPES = {
     commentRequired: false,
     placeholder: "What to explain (optional, defaults to the first preset)",
   },
+  // one synthetic card for the document as a whole, not tied to a passage
+  summary: {
+    label: "Summary",
+    commentRequired: false,
+    placeholder: "About the document as a whole (optional)",
+  },
 };
 
 // Quick phrases inserted into the comment field with one click; RU/EN via the header checkbox.
@@ -528,6 +537,11 @@ const PRESETS = {
     { en: "Disagreed", ru: "Не согласен" },
     { en: "Delete this passage", ru: "Удали этот участок" },
     { en: "I'll do this myself", ru: "Сделаю" },
+    { en: "Ignore", ru: "Игнорируем" },
+    { en: "Pending confirmation later", ru: "Ожидает подтверждения позже" },
+    { en: "👎", ru: "👎" },
+    { en: "👍", ru: "👍" },
+    { en: "🔥", ru: "🔥" },
   ],
   question: [
     { en: "Explain in a couple of sentences",
@@ -546,6 +560,12 @@ const PRESETS = {
     { en: "How?",                    ru: "Как?" },
     { en: "Why?",                    ru: "Почему?" },
     { en: "Rationale?",              ru: "Обоснование?" },
+    { en: "Explain in detail",       ru: "Объясни детально" },
+    { en: "Chosen",                  ru: "Выбрано" },
+  ],
+  summary: [
+    { en: "For everything marked \"Chosen\": compose a message asking to confirm those items",
+      ru: "Для всех что «Выбрано»: сформируй сообщение запрашивающее подтверждение пунктов" },
   ],
 };
 
@@ -556,6 +576,7 @@ const presetText = (p) => p[presetLang];
 
 let text = "";
 let annotations = [];   // {id, start, end, quote, type, comment}
+let summary = "";       // comment on the document as a whole (the synthetic "Summary" card)
 let nextId = 1;
 let pendingRange = null; // {start, end} awaiting a type/comment in the toolbar
 let pendingType = null;  // type chosen in the toolbar, null until a type button is clicked
@@ -599,9 +620,10 @@ $("start-review").addEventListener("click", () => {
   startReview($("paste-input").value);
 });
 $("change-text").addEventListener("click", () => {
-  if (annotations.length &&
+  if ((annotations.length || summary.trim()) &&
       !confirm("Changing the text will discard all annotations. Continue?")) return;
   annotations = [];
+  summary = "";
   hideToolbar();
   $("paste-input").value = text;
   syncPasteInput();
@@ -660,7 +682,7 @@ function render() {
   renderCards();
   const n = annotations.length;
   $("compose-count").textContent = n;
-  $("compose").disabled = n === 0 || !allValid();
+  $("compose").disabled = !hasContent() || !allValid();
   $("sidebar-hint").style.display = (n || viewing) ? "none" : "";
 }
 
@@ -680,9 +702,45 @@ function renderDoc() {
   if (pos < text.length) doc.appendChild(document.createTextNode(text.slice(pos)));
 }
 
+function renderSummaryCard() {
+  if (viewing && !summary.trim()) return null;
+  const card = document.createElement("div");
+  card.className = "card summary";
+  const head = document.createElement("div");
+  head.className = "card-head";
+  const badge = document.createElement("span");
+  badge.className = "badge summary";
+  badge.textContent = TYPES.summary.label;
+  head.appendChild(badge);
+  const quote = document.createElement("div");
+  quote.className = "quote";
+  quote.textContent = "The whole document";
+  card.append(head, quote);
+  if (viewing) {
+    const c = document.createElement("div");
+    c.className = "comment";
+    c.textContent = summary.trim();
+    card.append(c);
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = summary;
+    ta.placeholder = TYPES.summary.placeholder;
+    const sync = () => {
+      summary = ta.value;
+      $("compose").disabled = !hasContent() || !allValid();
+      saveDraft();
+    };
+    ta.addEventListener("input", sync);
+    card.append(ta, buildPresetRow("summary", ta, sync));
+  }
+  return card;
+}
+
 function renderCards() {
   const cards = $("cards");
   cards.textContent = "";
+  const summaryCard = renderSummaryCard();
+  if (summaryCard) cards.appendChild(summaryCard);
   for (const a of annotations) {
     const card = document.createElement("div");
     card.className = `card ${a.type}`;
@@ -701,6 +759,7 @@ function renderCards() {
       typeSel.className = `badge ${a.type}`;
       typeSel.title = "Change annotation type";
       for (const [key, t] of Object.entries(TYPES)) {
+        if (key === "summary") continue;
         const opt = document.createElement("option");
         opt.value = key;
         opt.textContent = t.label;
@@ -747,7 +806,7 @@ function renderCards() {
       const sync = () => {
         a.comment = ta.value;
         ta.classList.toggle("invalid", TYPES[a.type].commentRequired && !ta.value.trim());
-        $("compose").disabled = annotations.length === 0 || !allValid();
+        $("compose").disabled = !hasContent() || !allValid();
         saveDraft();
       };
       ta.addEventListener("input", sync);
@@ -759,6 +818,11 @@ function renderCards() {
     }
     cards.appendChild(card);
   }
+}
+
+// something to compose: at least one annotation or a non-empty summary
+function hasContent() {
+  return annotations.length > 0 || !!summary.trim();
 }
 
 function allValid() {
@@ -946,13 +1010,16 @@ function quoteBlock(s) {
 // Bare quote/remark pairs, no legend — reads the same to a human and to an AI.
 // An empty question falls back to the first question preset in the current language.
 function buildPrompt() {
-  return annotations
-    .map((a) => {
-      const comment = a.comment.trim();
-      const body = comment || (a.type === "question" ? presetText(PRESETS.question[0]) : "");
-      return quoteBlock(a.quote) + "\n\n" + body;
-    })
-    .join("\n\n\n");
+  const blocks = annotations.map((a) => {
+    const comment = a.comment.trim();
+    const body = comment || (a.type === "question" ? presetText(PRESETS.question[0]) : "");
+    return quoteBlock(a.quote) + "\n\n" + body;
+  });
+  if (summary.trim()) {
+    const whole = presetLang === "ru" ? "(весь документ)" : "(the whole document)";
+    blocks.push(quoteBlock(whole) + "\n\n" + summary.trim());
+  }
+  return blocks.join("\n\n\n");
 }
 
 /* ---------- modal ---------- */
@@ -1026,7 +1093,7 @@ $("send-btn").addEventListener("click", async () => {
     const r = await fetch("/api/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, annotations }),
+      body: JSON.stringify({ prompt, annotations, summary }),
     });
     if (!r.ok) throw new Error(await r.text());
   } catch (err) {
@@ -1093,7 +1160,7 @@ function saveDraft() {
   if (viewing) return; // text/annotations belong to a past review right now
   let draft;
   if ($("review-view").style.display === "flex") {
-    draft = { stage: "review", text, annotations, nextId, localEntryId };
+    draft = { stage: "review", text, annotations, summary, nextId, localEntryId };
   } else {
     const v = $("paste-input").value;
     if (!v) { clearDraft(); return; }
@@ -1118,6 +1185,7 @@ function loadDraft() {
     if (!d || typeof d.text !== "string" || !d.text) return null;
     if (d.stage === "paste") return d;
     if (d.stage !== "review" || !Array.isArray(d.annotations)) return null;
+    if (d.summary !== undefined && typeof d.summary !== "string") return null;
     const ok = d.annotations.every((a) =>
       a && Number.isInteger(a.id) && Number.isInteger(a.start) && Number.isInteger(a.end) &&
       a.start >= 0 && a.start < a.end && a.end <= d.text.length &&
@@ -1135,6 +1203,7 @@ function restoreDraft() {
     return;
   }
   annotations = d.annotations;
+  summary = d.summary || "";
   nextId = Math.max(Number.isInteger(d.nextId) ? d.nextId : 1, ...annotations.map((a) => a.id + 1));
   startReview(d.text);
   localEntryId = typeof d.localEntryId === "string" ? d.localEntryId : null;
@@ -1155,9 +1224,10 @@ function saveCurrentToHistory() {
     id: localEntryId,
     created_at: new Date().toISOString(),
     title: titleOf(text),
-    count: annotations.length,
+    count: annotations.length + (summary.trim() ? 1 : 0),
     text,
     annotations: annotations.map((a) => ({ ...a })),
+    summary,
     prompt: promptValue(),
   });
   clearDraft(); // it is in the history now; any further edit starts a new draft
@@ -1224,13 +1294,14 @@ function renderHistoryList(entries) {
 function enterViewing(entry) {
   hideToolbar();
   if (!viewing) {
-    viewing = { entry, stash: { text, annotations, nextId,
+    viewing = { entry, stash: { text, annotations, summary, nextId,
       wasReviewing: $("review-view").style.display === "flex" } };
   } else {
     viewing.entry = entry; // switching between past reviews keeps the original stash
   }
   text = entry.text || "";
   annotations = (entry.annotations || []).map((a) => ({ ...a }));
+  summary = typeof entry.summary === "string" ? entry.summary : "";
   nextId = 1;
   $("view-date").textContent = fmtDate(entry.created_at);
   $("view-status").textContent = "";
@@ -1250,6 +1321,7 @@ function exitViewing() {
   viewing = null;
   text = stash.text;
   annotations = stash.annotations;
+  summary = stash.summary;
   nextId = stash.nextId;
   $("view-banner").style.display = "none";
   if (stash.wasReviewing) {
