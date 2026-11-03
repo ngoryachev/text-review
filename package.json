@@ -1,0 +1,8 @@
+{
+  "name": "text-review",
+  "private": true,
+  "description": "Tests for the single-file UI (index.html). No dependencies: node:test only.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
