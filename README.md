@@ -11,16 +11,30 @@ Annotation types:
 - **Question** — ask to explain a passage (optional; an empty question defaults to
   "Explain in a couple of sentences")
 
-Both types come with one-click presets under the comment field (Feedback: yes / no /
-approved / rejected / agreed / disagreed / delete this passage / I'll do this myself;
-Question: brief explanation, explanation + solution, metaphor, "like I'm five", mermaid
-diagram packed into a clickable link, three options A/B/C to choose from, downsides,
-how, why, rationale). A preset
-replaces the field content and can be edited further. The **RU presets** checkbox in
-the header switches the presets to Russian (English by default; the choice is
-remembered in the browser). The type of an existing annotation can be changed from
-its card without re-selecting the passage, and the composed prompt can be edited
-directly before copying or sending.
+Both types come with one-click presets under the comment field (Feedback: yes /
+no / approved / rejected / agreed / disagreed / delete this passage / I'll do
+this myself / ignore / pending confirmation later / 👎 👍 🔥 👌 🌚 🤔 / this is
+unacceptable / this is inappropriate / this is not our area of responsibility /
+on hold for now / the first one / the second one; Question: brief explanation,
+explanation + solution, metaphor, "like I'm five", mermaid diagram packed into a
+clickable link, three options A/B/C to choose from, downsides, how, why,
+rationale, explain in detail, chosen, what are the options?, what for?, what is
+this?, pros / cons?). A preset replaces the field content and can be edited
+further. The **RU presets** checkbox in the header switches the presets to
+Russian (English by default; the choice is remembered in the browser). The type
+of an existing annotation can be changed from its card without re-selecting the
+passage, and the composed prompt can be edited directly before copying or
+sending.
+
+Besides the per-passage cards there is one synthetic **Summary** card for a
+remark about the document as a whole; its field is a few lines tall and can be
+dragged taller.
+
+The **Original text** checkbox next to **RU presets** prepends the whole
+reviewed document to the composed prompt under an "Original text:" heading
+(`Исходный текст:` with RU presets) — untruncated, unlike the quoted passages.
+It is off by default and the choice is remembered in the browser. Use it when
+the receiving AI no longer has the reviewed text in its context.
 
 The CLI blocks until you click **Send to CLI & finish** in the browser, then
 prints the prompt to stdout — so `feedback=$(...)` works; all logs go to stderr.

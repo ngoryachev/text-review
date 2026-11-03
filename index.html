@@ -235,6 +235,8 @@
   .badge.question { background: var(--question-bg); color: var(--question-strong); }
   .badge.summary { background: var(--summary-bg); color: var(--summary-strong); }
   .card.summary .quote { cursor: default; }
+  /* the whole-document remark is usually longer than a passage remark */
+  .card.summary textarea { min-height: 80px; }
   /* the badge is a <select>: click it to change the annotation type */
   select.badge {
     font-family: inherit;
@@ -496,6 +498,9 @@
     <label class="lang" title="Insert presets in Russian instead of English">
       <input type="checkbox" id="preset-ru"> RU presets
     </label>
+    <label class="lang" title="Start the composed prompt with the full reviewed text">
+      <input type="checkbox" id="include-original"> Original text
+    </label>
   </div>
   <div class="spacer"></div>
   <button id="history-btn" title="Previous reviews saved in this browser">History</button>
@@ -624,6 +629,16 @@ const PRESETS = {
     { en: "👎", ru: "👎" },
     { en: "👍", ru: "👍" },
     { en: "🔥", ru: "🔥" },
+    { en: "👌", ru: "👌" },
+    { en: "🌚", ru: "🌚" },
+    { en: "🤔", ru: "🤔" },
+    { en: "This is unacceptable", ru: "это неприемлемо" },
+    { en: "This is inappropriate", ru: "это неуместно" },
+    { en: "This is not our area of responsibility",
+      ru: "это не наша зона ответственности" },
+    { en: "On hold for now", ru: "пока пауза" },
+    { en: "The first one", ru: "первое" },
+    { en: "The second one", ru: "второе" },
   ],
   question: [
     { en: "Explain in a couple of sentences",
@@ -644,6 +659,10 @@ const PRESETS = {
     { en: "Rationale?",              ru: "Обоснование?" },
     { en: "Explain in detail",       ru: "Объясни детально" },
     { en: "Chosen",                  ru: "Выбрано" },
+    { en: "What are the options? (briefly)", ru: "Какие варианты? (кратко)" },
+    { en: "What for? (briefly)",             ru: "Зачем? (кратко)" },
+    { en: "What is this? (briefly)",         ru: "Что это? (кратко)" },
+    { en: "Pros / cons?",                    ru: "плюсы / минусы?" },
   ],
   summary: [
     { en: "For everything marked \"Chosen\": compose a message asking to confirm those items",
@@ -655,6 +674,11 @@ const LANG_KEY = "presetLang";
 let presetLang = "en";
 try { presetLang = localStorage.getItem(LANG_KEY) === "ru" ? "ru" : "en"; } catch {}
 const presetText = (p) => p[presetLang];
+
+// Off by default: when on, buildPrompt() prepends the reviewed document verbatim.
+const ORIGINAL_KEY = "includeOriginal";
+let includeOriginal = false;
+try { includeOriginal = localStorage.getItem(ORIGINAL_KEY) === "1"; } catch {}
 
 let text = "";
 let annotations = [];   // {id, start, end, quote, type, comment}
@@ -749,6 +773,13 @@ $("preset-ru").addEventListener("change", (e) => {
   try { localStorage.setItem(LANG_KEY, presetLang); } catch {}
   if (pendingType && $("seltool-form").style.display === "block") renderToolbarPresets();
   render();
+});
+
+$("include-original").checked = includeOriginal;
+$("include-original").addEventListener("change", (e) => {
+  includeOriginal = e.target.checked;
+  try { localStorage.setItem(ORIGINAL_KEY, includeOriginal ? "1" : "0"); } catch {}
+  lastGenerated = null; // drop the cached prompt so the preview is rebuilt
 });
 
 /* A row of preset chips; a click replaces the textarea content with the phrase. */
@@ -1106,7 +1137,14 @@ function quoteBlock(s) {
 
 // Bare quote/remark pairs, no legend — reads the same to a human and to an AI.
 // An empty question falls back to the first question preset in the current language.
+// With the "Original text" checkbox on, the whole reviewed document (verbatim,
+// untruncated) goes first, so the remarks below have their context.
 function buildPrompt() {
+  const head = [];
+  if (includeOriginal && text.trim()) {
+    const title = presetLang === "ru" ? "Исходный текст:" : "Original text:";
+    head.push(title + "\n\n" + text.trim());
+  }
   const blocks = annotations.map((a) => {
     const comment = a.comment.trim();
     const body = comment || (a.type === "question" ? presetText(PRESETS.question[0]) : "");
@@ -1116,7 +1154,7 @@ function buildPrompt() {
     const whole = presetLang === "ru" ? "(весь документ)" : "(the whole document)";
     blocks.push(quoteBlock(whole) + "\n\n" + summary.trim());
   }
-  return blocks.join("\n\n\n");
+  return head.concat(blocks).join("\n\n\n");
 }
 
 /* ---------- modal ---------- */
